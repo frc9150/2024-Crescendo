@@ -9,7 +9,6 @@ import edu.wpi.first.math.kinematics.SwerveDriveOdometry
 import edu.wpi.first.math.kinematics.SwerveModulePosition
 import edu.wpi.first.math.kinematics.SwerveModuleState
 import edu.wpi.first.math.util.Units
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import edu.wpi.first.wpilibj2.command.SubsystemBase
 
 import com.kauailabs.navx.frc.AHRS
@@ -20,6 +19,8 @@ import com.revrobotics.CANSparkBase.IdleMode
 import com.revrobotics.CANSparkLowLevel.MotorType
 import com.revrobotics.CANSparkBase.ControlType
 import com.revrobotics.SparkAbsoluteEncoder.Type
+
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 
 class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 	companion object {
@@ -64,6 +65,8 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 		if (fieldRel) speeds = ChassisSpeeds.fromFieldRelativeSpeeds(speeds, getPose().getRotation())
 		val states = kinematics.toSwerveModuleStates(speeds)
 		SwerveDriveKinematics.desaturateWheelSpeeds(states, speeds, maxModVel, maxLinVel, maxAngVel)
+		SmartDashboard.putNumber("TL Des Speed", states[0].speedMetersPerSecond);
+		SmartDashboard.putNumber("Max Speed", maxLinVel);
 		modules.zip(states, Module::setDesiredState)
 	}
 
@@ -111,11 +114,11 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 	class Module(driveCanId: Int, turnCanId: Int, val chassisAngularOffset: Double) {
 		companion object {
 			const val wheelDiameter = 0.0762 // meters
-			const val neoFreeSpeedRpm = 5676.0
+			const val neoFreeSpeedRpm = 6784.0
 
 			const val wheelCircumference = wheelDiameter * Math.PI // meters
 
-			const val drivePinionTeeth = 13.0
+			const val drivePinionTeeth = 14.0
 
 			const val driveReduction = (45.0 * 22) / (drivePinionTeeth * 15)
 
@@ -144,7 +147,7 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 
 			// Why?
 			val driveIdle = IdleMode.kBrake
-			val turnIdle = IdleMode.kBrake
+			val turnIdle = IdleMode.kCoast
 
 			const val driveCurrentLim = 50
 			const val turnCurrentLim = 20

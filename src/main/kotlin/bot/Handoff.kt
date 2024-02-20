@@ -7,7 +7,7 @@ import com.revrobotics.CANSparkBase.IdleMode
 import com.revrobotics.CANSparkBase.ControlType
 import com.revrobotics.CANSparkLowLevel.MotorType
 
-class Handoff: StateSystem<Handoff.Goal, Handoff.State> {
+class Handoff : StateSystem<Handoff.Goal, Handoff.State> {
 	companion object {
 		// >1 is gearing increase, <1 is reduction
 		const val gearing = 1.0
@@ -19,10 +19,10 @@ class Handoff: StateSystem<Handoff.Goal, Handoff.State> {
 	}
 
 	// TODO: figure out which motor (if any) needs to be inverted
-	private val motor = CANSparkFlex(-1, MotorType.kBrushless).apply {
+	private val motor = CANSparkFlex(10, MotorType.kBrushless).apply {
 		restoreFactoryDefaults()
 		setIdleMode(IdleMode.kBrake)
-		setSmartCurrentLimit(20)
+		setSmartCurrentLimit(80)
 		enableVoltageCompensation(12.0)
 	}
 
@@ -34,7 +34,7 @@ class Handoff: StateSystem<Handoff.Goal, Handoff.State> {
 	/// PID slot 0 is velocity, slot 1 is position
 	private val controller = motor.getPIDController().apply {
 		// Velocity PID
-		setP(0.1, 0)
+		setP(10000.0, 0)
 		setI(0.0, 0)
 		setD(0.0, 0)
 		setFF(1.0/freeSpeed, 0)
@@ -57,7 +57,7 @@ class Handoff: StateSystem<Handoff.Goal, Handoff.State> {
 		/// Allow handoff to free-spin
 		object Coast : Goal
 		/// Grab from intake
-		object Intake : VelGoal { override val vel = 1.0 }
+		object Intake : VelGoal { override val vel = 10.0 }
 		/// Shoot into speaker
 		object Shoot : VelGoal { override val vel = 5.0 }
 		/// Deposit into amp

@@ -18,7 +18,7 @@ class Shooter: StateSystem<Shooter.Goal, Shooter.State> {
 	}
 
 	// TODO: figure out which motor (if any) needs to be inverted
-	private val motors = arrayOf(-1, -1).zip(arrayOf(false, true)) { id, inverted -> CANSparkFlex(id, MotorType.kBrushless).apply {
+	private val motors = arrayOf(11, 12).zip(arrayOf(true, true)) { id, inverted -> CANSparkFlex(id, MotorType.kBrushless).apply {
 		restoreFactoryDefaults()
 		setIdleMode(IdleMode.kCoast)
 		setSmartCurrentLimit(20)
