@@ -21,7 +21,7 @@ class Shooter: StateSystem<Shooter.Goal, Shooter.State> {
 	private val motors = arrayOf(11, 12).zip(arrayOf(true, true)) { id, inverted -> CANSparkFlex(id, MotorType.kBrushless).apply {
 		restoreFactoryDefaults()
 		setIdleMode(IdleMode.kCoast)
-		setSmartCurrentLimit(20)
+		setSmartCurrentLimit(80)
 		enableVoltageCompensation(12.0)
 		setInverted(inverted)
 	}}
@@ -48,20 +48,19 @@ class Shooter: StateSystem<Shooter.Goal, Shooter.State> {
 	}}
 
 	sealed interface Goal {
-		sealed interface VelGoal : Goal {
-			/// Tangential speed of the shooter wheels, in m/s
-			val vel: Double
+		sealed interface Power : Goal {
+			val power: Double
 		}
 		/// Brake to hold position/hold note in place
 		object Brake : Goal
 		/// Allow shooter to free-spin
 		object Coast : Goal
 		/// Shoot into speaker
-		object Shoot : VelGoal { override val vel = 10.0 }
+		object Shoot : Power { override val power = 1.0 }
 		/// Deposit into amp
-		object Deposit : VelGoal { override val vel = -0.5 }
+		object Deposit : Power { override val power = -0.5 }
 		/// Custom target velocity
-		data class Other(override val vel: Double) : VelGoal
+		data class Other(override val power: Double) : Power
 	}
 
 	data class State(val vel: Double, val atGoal: Boolean)
@@ -84,13 +83,14 @@ class Shooter: StateSystem<Shooter.Goal, Shooter.State> {
 				motors.forEach { it.set(0.0) }
 				atGoal = true
 			}
-			is Goal.VelGoal -> {
-				controllers.forEach { it.setReference(goal.vel, ControlType.kVelocity, 0) }
-				atGoal = encoders.all { encoder ->
+			is Goal.Power -> {
+				motors.forEach { it.set(goal.power) }
+				//controllers.forEach { it.setReference(goal.vel, ControlType.kVelocity, 0) }
+				atGoal = true /*encoders.all { encoder ->
 					// shooter is considered to be at the correct speed when the velocity is between 90% and 110% of the target velocity
 					// TODO: I guess we have to account for goal.vel = 0, smh
 					abs((encoder.getVelocity() / goal.vel) - 1.0) < 0.1
-				}
+				}*/
 			}
 		}
 

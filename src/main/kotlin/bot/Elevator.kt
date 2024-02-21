@@ -24,7 +24,7 @@ class Elevator: StateSystem<Elevator.Goal, Elevator.State> {
 	private val motor = CANSparkFlex(9, MotorType.kBrushless).apply {
 		restoreFactoryDefaults()
 		setIdleMode(IdleMode.kBrake)
-		setSmartCurrentLimit(25)
+		setSmartCurrentLimit(60)
 		enableVoltageCompensation(12.0)
 		setInverted(true)
 	}
@@ -37,7 +37,8 @@ class Elevator: StateSystem<Elevator.Goal, Elevator.State> {
 	private val controller = motor.getPIDController().apply {
 		// TODO: Tune
 		// Position PID
-		setP(1.0)
+		// gives 15% output with 3cm error
+		setP(5.0)
 		setI(0.0)
 		setD(0.0)
 		setOutputRange(-1.0, 1.0)
@@ -63,17 +64,23 @@ class Elevator: StateSystem<Elevator.Goal, Elevator.State> {
 	override fun applyGoal(goal: Goal): State {
 		if (goal != lastGoal) timer.restart()
 		lastGoal = goal
-		SmartDashboard.putNumber("elev pos", encoder.getPosition())
 		SmartDashboard.putNumber("timer", timer.get())
+		// OLD: Expected initial output: P * 0.0002 + (0.02 / freespeed)
 		val setpoint = profile.calculate(timer.get(), TrapezoidProfile.State(encoder.getPosition(), encoder.getVelocity()), TrapezoidProfile.State(goal.pos, 0.0))
-		// TODO: Velocity feedforward, gravity aFF
-		controller.setReference(setpoint.position, ControlType.kPosition, 0, (setpoint.velocity / freeSpeed), SparkPIDController.ArbFFUnits.kPercentOut)
+		// TODO: gravity aFF
+		controller.setReference(setpoint.position, ControlType.kPosition, 0, (setpoint.velocity / freeSpeed)/* + Math.copySign(0.1, setpoint.velocity)*/, SparkPIDController.ArbFFUnits.kPercentOut)
 		SmartDashboard.putNumber("sp vel", setpoint.velocity)
+		SmartDashboard.putNumber("elev pos", encoder.getPosition())
 		SmartDashboard.putNumber("sp pos", setpoint.position)
 		SmartDashboard.putNumber("elev pos 2", encoder.getPosition())
 		return State(
 			encoder.getPosition(),
 			abs(goal.pos - encoder.getPosition()) < 0.0 && abs(encoder.getVelocity()) < 0.0)
+	}
+
+	// temp for testing
+	fun clearGoal() {
+		lastGoal = null
 	}
 
 	override fun disable() {

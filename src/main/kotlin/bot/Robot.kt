@@ -16,6 +16,16 @@ import edu.wpi.first.wpilibj2.command.Command
 import edu.wpi.first.wpilibj2.command.CommandScheduler
 //import system.Console
 
+// CAN ids:
+// 1,2,3,4: swerve drive fl, fr, br, bl
+// 5,6,7,8: swerve angle fl, fr, br, bl
+// 9: elevator
+// 10: handoff
+// 11, 12: shooter (idr which is which)
+// Unset, but planned:
+// 13: pivot
+// 14, 15: climbers
+
 class Robot : TimedRobot() {
 	private var autoCmd: Command? = null
 	private var robotContainer: RobotContainer? = null
@@ -32,29 +42,29 @@ class Robot : TimedRobot() {
 		robotContainer = RobotContainer()
 		// intake = Intake()
 		swerve = Swerve()
- 		motors = arrayOf(11, 12).zip(arrayOf(true, true)) { id, inverted -> CANSparkFlex(id, MotorType.kBrushless).apply {
+ 		/*motors = arrayOf(11, 12).zip(arrayOf(true, true)) { id, inverted -> CANSparkFlex(id, MotorType.kBrushless).apply {
 		restoreFactoryDefaults()
 		setIdleMode(IdleMode.kCoast)
 		setSmartCurrentLimit(80)
 		enableVoltageCompensation(12.0)
 		setInverted(inverted)
-	}}
+	}}*/
 
-		//elevator = Elevator()
+		elevator = Elevator()
 		controller = XboxController(0)
-motor = CANSparkFlex(10, MotorType.kBrushless).apply {
+/*motor = CANSparkFlex(10, MotorType.kBrushless).apply {
 		restoreFactoryDefaults()
 		setIdleMode(IdleMode.kBrake)
 		setSmartCurrentLimit(80)
 		enableVoltageCompensation(12.0)
-	}
+	}*/
 
 	}
 	override fun robotPeriodic() {
 		controller.setRumble(GenericHID.RumbleType.kRightRumble, 0.5)
 		swerve.applyGoal(Swerve.Goal.Drive(Translation2d(-controller.getLeftY() * Swerve.maxLinVel, -controller.getLeftX() * Swerve.maxLinVel), -controller.getRightX() * Swerve.maxAngVel, true))
 
-		if (controller.getYButton()) {
+		/*if (controller.getYButton()) {
 			motor.set(0.5)
 			motors[0].set(1.0)
 			motors[1].set(1.0)
@@ -62,6 +72,11 @@ motor = CANSparkFlex(10, MotorType.kBrushless).apply {
 			motor.set(0.0)
 			motors[0].set(0.0)
 			motors[1].set(0.0)
+		}*/
+		if (controller.getXButton()) {
+			elevator.applyGoal(Elevator.Goal.Home)
+		} else {
+			elevator.clearGoal()
 		}
 		// Intake controls commented
 		/*if (controller.getXButton()) {

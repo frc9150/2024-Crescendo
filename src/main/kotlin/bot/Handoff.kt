@@ -22,7 +22,7 @@ class Handoff : StateSystem<Handoff.Goal, Handoff.State> {
 	private val motor = CANSparkFlex(10, MotorType.kBrushless).apply {
 		restoreFactoryDefaults()
 		setIdleMode(IdleMode.kBrake)
-		setSmartCurrentLimit(80)
+		setSmartCurrentLimit(40)
 		enableVoltageCompensation(12.0)
 	}
 
@@ -34,7 +34,7 @@ class Handoff : StateSystem<Handoff.Goal, Handoff.State> {
 	/// PID slot 0 is velocity, slot 1 is position
 	private val controller = motor.getPIDController().apply {
 		// Velocity PID
-		setP(10000.0, 0)
+		setP(1.0, 0)
 		setI(0.0, 0)
 		setD(0.0, 0)
 		setFF(1.0/freeSpeed, 0)
