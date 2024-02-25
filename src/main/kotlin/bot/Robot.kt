@@ -74,6 +74,8 @@ class Robot : TimedRobot() {
 			motors[1].set(0.0)
 		}*/
 		if (controller.getXButton()) {
+			elevator.applyGoal(Elevator.Goal.Amp)
+		} else if (controller.getAButton()) {
 			elevator.applyGoal(Elevator.Goal.Home)
 		} else {
 			elevator.clearGoal()
