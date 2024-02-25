@@ -38,7 +38,7 @@ class Elevator: StateSystem<Elevator.Goal, Elevator.State> {
 		// TODO: Tune
 		// Position PID
 		// gives 15% output with 3cm error
-		setP(5.0)
+		setP(15.0)
 		setI(0.0)
 		setD(0.0)
 		setOutputRange(-1.0, 1.0)
@@ -60,13 +60,17 @@ class Elevator: StateSystem<Elevator.Goal, Elevator.State> {
 	private val profile = TrapezoidProfile(TrapezoidProfile.Constraints(1.0, 1.0))
 	private var lastGoal: Goal? = null
 	private var timer = Timer()
+	private lateinit var initState: TrapezoidProfile.State
 
 	override fun applyGoal(goal: Goal): State {
-		if (goal != lastGoal) timer.restart()
+		if (goal != lastGoal) {
+			timer.restart()
+			initState = TrapezoidProfile.State(encoder.getPosition(), encoder.getVelocity())
+		}
 		lastGoal = goal
 		SmartDashboard.putNumber("timer", timer.get())
 		// OLD: Expected initial output: P * 0.0002 + (0.02 / freespeed)
-		val setpoint = profile.calculate(timer.get(), TrapezoidProfile.State(encoder.getPosition(), encoder.getVelocity()), TrapezoidProfile.State(goal.pos, 0.0))
+		val setpoint = profile.calculate(timer.get(), initState, TrapezoidProfile.State(goal.pos, 0.0))
 		// TODO: gravity aFF
 		controller.setReference(setpoint.position, ControlType.kPosition, 0, (setpoint.velocity / freeSpeed)/* + Math.copySign(0.1, setpoint.velocity)*/, SparkPIDController.ArbFFUnits.kPercentOut)
 		SmartDashboard.putNumber("sp vel", setpoint.velocity)
