@@ -28,11 +28,12 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 		val trackWidth = Units.inchesToMeters(26.5)
 		val wheelBase = Units.inchesToMeters(21.5)
 
+		// Coordinate space?
 		val kinematics = SwerveDriveKinematics(
-			Translation2d(-wheelBase / 2, -trackWidth / 2),
-			Translation2d(-wheelBase / 2, trackWidth / 2),
+			Translation2d(wheelBase / 2, trackWidth / 2),
 			Translation2d(wheelBase / 2, -trackWidth / 2),
-			Translation2d(wheelBase / 2, trackWidth / 2))
+			Translation2d(-wheelBase / 2, trackWidth / 2),
+			Translation2d(-wheelBase / 2, -trackWidth / 2))
 
 		// TODO
 		val maxLinVel = Module.driveFreeSpeed
