@@ -15,6 +15,7 @@ import edu.wpi.first.math.geometry.Translation2d
 import edu.wpi.first.math.geometry.Rotation2d
 import edu.wpi.first.wpilibj2.command.Command
 import edu.wpi.first.wpilibj2.command.CommandScheduler
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 //import system.Console
 
 // CAN ids:
@@ -64,6 +65,8 @@ class Robot : TimedRobot() {
 	override fun robotPeriodic() {
 		val pose = swerve.getPose()
 		val transError = Translation2d(0.0, 0.0).minus(pose.getTranslation())
+		SmartDashboard.putNumber("swerve x pos", pose.getTranslation().getX())
+		SmartDashboard.putNumber("swerve y pos", pose.getTranslation().getY())
 		if (controller.getRightBumper() && transError.getNorm() > 0.5) {
 			val targetAngle = transError.getAngle()
 			val error = targetAngle.minus(pose.getRotation()).getRadians()
