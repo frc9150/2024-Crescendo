@@ -28,12 +28,6 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 		val trackWidth = Units.inchesToMeters(26.5)
 		val wheelBase = Units.inchesToMeters(21.5)
 
-		// Coordinate space?
-		/*val kinematics = SwerveDriveKinematics(
-			Translation2d(wheelBase / 2, trackWidth / 2),
-			Translation2d(wheelBase / 2, -trackWidth / 2),
-			Translation2d(-wheelBase / 2, trackWidth / 2),
-			Translation2d(-wheelBase / 2, -trackWidth / 2))*/
 		val kinematics = SwerveDriveKinematics(
 			Translation2d(-wheelBase / 2, -trackWidth / 2),
 			Translation2d(-wheelBase / 2, trackWidth / 2),
@@ -206,10 +200,10 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 			setOutputRange(-1.0, 1.0)
 		}
 
-		init {
+		/*init {
 			driveM.burnFlash()
 			turnM.burnFlash()
-		}
+		}*/
 
 		fun getState() = SwerveModuleState(driveE.getVelocity(), Rotation2d(turnE.getPosition() - chassisAngularOffset))
 		fun getPosition() = SwerveModulePosition(driveE.getPosition(), Rotation2d(turnE.getPosition() - chassisAngularOffset))
