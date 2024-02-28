@@ -29,11 +29,16 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 		val wheelBase = Units.inchesToMeters(21.5)
 
 		// Coordinate space?
-		val kinematics = SwerveDriveKinematics(
+		/*val kinematics = SwerveDriveKinematics(
 			Translation2d(wheelBase / 2, trackWidth / 2),
 			Translation2d(wheelBase / 2, -trackWidth / 2),
 			Translation2d(-wheelBase / 2, trackWidth / 2),
-			Translation2d(-wheelBase / 2, -trackWidth / 2))
+			Translation2d(-wheelBase / 2, -trackWidth / 2))*/
+		val kinematics = SwerveDriveKinematics(
+			Translation2d(-wheelBase / 2, -trackWidth / 2),
+			Translation2d(-wheelBase / 2, trackWidth / 2),
+			Translation2d(wheelBase / 2, -trackWidth / 2),
+			Translation2d(wheelBase / 2, trackWidth / 2))
 
 		// TODO
 		val maxLinVel = Module.driveFreeSpeed
@@ -144,13 +149,11 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 			const val driveFF = 1 / driveFreeSpeed
 
 			// PID on position
-			// Why?
 			const val turnP = 1.0
 			const val turnI = 0.0
 			const val turnD = 0.0
 			const val turnFF = 0.0
 
-			// Why?
 			val driveIdle = IdleMode.kBrake
 			val turnIdle = IdleMode.kCoast
 
