@@ -10,6 +10,7 @@ import com.revrobotics.CANSparkLowLevel.MotorType
 import edu.wpi.first.wpilibj.TimedRobot
 import edu.wpi.first.wpilibj.XboxController
 import edu.wpi.first.wpilibj.GenericHID
+import edu.wpi.first.math.geometry.Pose2d
 import edu.wpi.first.math.geometry.Translation2d
 import edu.wpi.first.math.geometry.Rotation2d
 import edu.wpi.first.wpilibj2.command.Command
@@ -61,8 +62,21 @@ class Robot : TimedRobot() {
 
 	}
 	override fun robotPeriodic() {
-		controller.setRumble(GenericHID.RumbleType.kRightRumble, 0.5)
-		swerve.applyGoal(Swerve.Goal.Drive(Translation2d(-controller.getLeftY() * Swerve.maxLinVel, -controller.getLeftX() * Swerve.maxLinVel), -controller.getRightX() * Swerve.maxAngVel, true))
+		val pose = swerve.getPose()
+		val transError = Translation2d(0.0, 0.0).minus(pose.getTranslation())
+		if (controller.getRightBumper() && transError.getNorm() > 0.5) {
+			val targetAngle = transError.getAngle()
+			val error = targetAngle.minus(pose.getRotation()).getRadians()
+			var clippedError = error % (2.0 * Math.PI)
+			if (clippedError > Math.PI) { clippedError -= 2.0 * Math.PI }
+			if (clippedError < -Math.PI) { clippedError += 2.0 * Math.PI }
+			val velocity = swerve.getVelocity()
+			// trust
+			val derivative = (transError.getY() * velocity[0] - transError.getX() * velocity[1]) / (transError.getNorm() * transError.getNorm())
+			swerve.applyGoal(Swerve.Goal.Drive(Translation2d(-controller.getLeftY() * Swerve.maxLinVel, -controller.getLeftX() * Swerve.maxLinVel), 1.0 * clippedError + derivative, true))
+		} else {
+			swerve.applyGoal(Swerve.Goal.Drive(Translation2d(-controller.getLeftY() * Swerve.maxLinVel, -controller.getLeftX() * Swerve.maxLinVel), -controller.getRightX() * Swerve.maxAngVel, true))
+		}
 
 		/*if (controller.getYButton()) {
 			motor.set(0.5)
@@ -87,10 +101,8 @@ class Robot : TimedRobot() {
 			intake.applyGoal(Intake.Goal(Intake.Pivot.Goal.Retracted, Intake.Rollers.Goal.Brake))
 		}*/
 		if (controller.getLeftBumperPressed()) {
-			swerve.setRotation(Rotation2d(0.0))
+			swerve.setPose(Pose2d(Translation2d(0.0, 0.0), Rotation2d(0.0)))
 		}
-		// -0.567581
-		// -0.03302
 		
 		CommandScheduler.getInstance().run()
 	}

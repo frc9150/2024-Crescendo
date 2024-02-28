@@ -38,7 +38,7 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 		// TODO
 		val maxLinVel = Module.driveFreeSpeed
 		val maxModVel = Module.driveFreeSpeed //maxLinVel
-		val maxAngVel = 0.6 * Math.PI * 2.0
+		val maxAngVel = 1.0 * Math.PI * 2.0
 	}
 
 	sealed interface Goal {
@@ -92,6 +92,11 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 
 	fun getModulePositions() = modules.map(Module::getPosition).toTypedArray()
 
+	fun getVelocity(): Array<Double> {
+		val chassis = kinematics.toChassisSpeeds(*modules.map(Module::getState).toTypedArray())
+		val rotated = Translation2d(chassis.vxMetersPerSecond, chassis.vyMetersPerSecond).rotateBy(getPose().getRotation())
+		return arrayOf(rotated.getX(), rotated.getY(), chassis.omegaRadiansPerSecond)
+	}
 
 	override fun applyGoal(goal: Goal): State {
 		odo.update(gyro.getRotation2d(), getModulePositions())

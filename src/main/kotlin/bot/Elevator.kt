@@ -37,27 +37,28 @@ class Elevator: StateSystem<Elevator.Goal, Elevator.State> {
 	private val controller = motor.getPIDController().apply {
 		// TODO: Tune
 		// Position PID
-		// gives 15% output with 3cm error
+		// gives 15% output with 1cm error
 		setP(15.0)
 		setI(0.0)
-		setD(0.0)
+		setD(0.1)
 		setOutputRange(-1.0, 1.0)
 	}
 
 	sealed interface Goal {
+		// around 0.86-0.873 is absolute max extension
 		val pos: Double
 
-		object Home : Goal { override val pos = 0.05 }
-		//object Handoff : Goal { override val pos = 0.0 }
+		object Home : Goal { override val pos = 0.025 }
+		object Handoff : Goal { override val pos = 0.22 }
 		object Amp : Goal { override val pos = 0.5 }
-		//object Trap : Goal { override val pos = 0.0 }
-		//object Defense : Goal { override val pos = 0.0 }
+		object Trap : Goal { override val pos = 0.825 }
+		object Defense : Goal { override val pos = 0.75 }
 		//data class Other(override val pos: Double) : Goal
 	}
 
 	data class State(val pos: Double, val atGoal: Boolean)
 
-	private val profile = TrapezoidProfile(TrapezoidProfile.Constraints(1.0, 1.0))
+	private val profile = TrapezoidProfile(TrapezoidProfile.Constraints(1.3, 2.7))
 	private var lastGoal: Goal? = null
 	private var timer = Timer()
 	private lateinit var initState: TrapezoidProfile.State
@@ -68,15 +69,11 @@ class Elevator: StateSystem<Elevator.Goal, Elevator.State> {
 			initState = TrapezoidProfile.State(encoder.getPosition(), encoder.getVelocity())
 		}
 		lastGoal = goal
-		SmartDashboard.putNumber("timer", timer.get())
-		// OLD: Expected initial output: P * 0.0002 + (0.02 / freespeed)
 		val setpoint = profile.calculate(timer.get(), initState, TrapezoidProfile.State(goal.pos, 0.0))
-		// TODO: gravity aFF
-		controller.setReference(setpoint.position, ControlType.kPosition, 0, (setpoint.velocity / freeSpeed)/* + Math.copySign(0.1, setpoint.velocity)*/, SparkPIDController.ArbFFUnits.kPercentOut)
-		SmartDashboard.putNumber("sp vel", setpoint.velocity)
-		SmartDashboard.putNumber("elev pos", encoder.getPosition())
-		SmartDashboard.putNumber("sp pos", setpoint.position)
-		SmartDashboard.putNumber("elev pos 2", encoder.getPosition())
+		controller.setReference(setpoint.position, ControlType.kPosition, 0, (setpoint.velocity / freeSpeed), SparkPIDController.ArbFFUnits.kPercentOut)
+		SmartDashboard.putNumber("elevator position", encoder.getPosition())
+		SmartDashboard.putNumber("elevator setpoint position", setpoint.position)
+		SmartDashboard.putNumber("elevator target position", goal.pos)
 		return State(
 			encoder.getPosition(),
 			abs(goal.pos - encoder.getPosition()) < 0.0 && abs(encoder.getVelocity()) < 0.0)
