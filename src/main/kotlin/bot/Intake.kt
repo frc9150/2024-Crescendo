@@ -7,6 +7,8 @@ import com.revrobotics.CANSparkFlex
 import com.revrobotics.CANSparkBase.IdleMode
 import com.revrobotics.CANSparkBase.ControlType
 import com.revrobotics.CANSparkLowLevel.MotorType
+import au.grapplerobotics.LaserCan
+import au.grapplerobotics.ConfigurationFailedException
 //import edu.wpi.first.wpilibj.Timer
 //import edu.wpi.first.math.trajectory.TrapezoidProfile
 
@@ -17,6 +19,25 @@ class Intake : StateSystem<Intake.Goal, Intake.State> {
 
 	private val pivot = Pivot()
 	private val rollers = Rollers()
+	/*private val frontSensor = LaserCan(1).apply {
+		try {
+		  setRangingMode(LaserCan.RangingMode.SHORT);
+		  setRegionOfInterest(LaserCan.RegionOfInterest(8, 8, 16, 16));
+		  setTimingBudget(LaserCan.TimingBudget.TIMING_BUDGET_33MS);
+		} catch (e: ConfigurationFailedException) {
+		  System.out.println("Configuration failed on front LaserCAN! " + e);
+		}
+	}
+
+	private val backSensor = LaserCan(2).apply {
+		try {
+		  setRangingMode(LaserCan.RangingMode.SHORT);
+		  setRegionOfInterest(LaserCan.RegionOfInterest(8, 8, 16, 16));
+		  setTimingBudget(LaserCan.TimingBudget.TIMING_BUDGET_33MS);
+		} catch (e: ConfigurationFailedException) {
+		  System.out.println("Configuration failed on front LaserCAN! " + e);
+		}
+	}*/
 
 	override fun applyGoal(goal: Goal) = State(pivot.applyGoal(goal.pivot), rollers.applyGoal(goal.rollers))
 
@@ -48,7 +69,7 @@ class Intake : StateSystem<Intake.Goal, Intake.State> {
 		private val motor = CANSparkFlex(-1, MotorType.kBrushless).apply {
 			restoreFactoryDefaults()
 			setIdleMode(IdleMode.kBrake)
-			setSmartCurrentLimit(15)
+			setSmartCurrentLimit(25)
 			enableVoltageCompensation(11.0)
 		}
 
@@ -60,7 +81,7 @@ class Intake : StateSystem<Intake.Goal, Intake.State> {
 		private val controller = motor.getPIDController().apply {
 			// TODO: Tune
 			// Position PID
-			setP(0.1)
+			setP(0.5)
 			setI(0.0)
 			setD(0.0)
 			setOutputRange(-1.0, 1.0)
@@ -86,7 +107,7 @@ class Intake : StateSystem<Intake.Goal, Intake.State> {
 		private val motor = CANSparkFlex(-1, MotorType.kBrushless).apply {
 			restoreFactoryDefaults()
 			setIdleMode(IdleMode.kBrake)
-			setSmartCurrentLimit(15)
+			setSmartCurrentLimit(25)
 			enableVoltageCompensation(11.0)
 		}
 
@@ -95,7 +116,7 @@ class Intake : StateSystem<Intake.Goal, Intake.State> {
 		private val controller = motor.getPIDController().apply {
 			// TODO: Tune
 			// Position PID
-			setP(0.1)
+			setP(1.0)
 			setI(0.0)
 			setD(0.0)
 			setOutputRange(-1.0, 1.0)

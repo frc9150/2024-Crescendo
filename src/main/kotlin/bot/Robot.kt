@@ -19,14 +19,16 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 //import system.Console
 
 // CAN ids:
-// 1,2,3,4: swerve drive fl, fr, br, bl
-// 5,6,7,8: swerve angle fl, fr, br, bl
+// 1,2,3,4: swerve drive br, bl, fl, fr
+// 5,6,7,8: swerve angle br, bl, fl, fr
 // 9: elevator
 // 10: handoff
 // 11, 12: shooter (idr which is which)
 // Unset, but planned:
 // 13: pivot
-// 14, 15: climbers
+// 14: intake pivot
+// 15: intake motor
+// 16, 17: climbers
 
 class Robot : TimedRobot() {
 	private var autoCmd: Command? = null

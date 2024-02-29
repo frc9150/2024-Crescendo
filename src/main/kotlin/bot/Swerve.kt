@@ -51,10 +51,10 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 
 	// frontLeft, frontRight, backLeft, backRight
 	private val modules = arrayOf(
-		Module(1, 5, Math.PI - Math.PI/2),
-		Module(2, 6, Math.PI + 0.0),
-		Module(4, 8, Math.PI + Math.PI),
-		Module(3, 7, Math.PI + Math.PI/2))
+		Module(3, 7, -Math.PI/2),
+		Module(4, 8, 0.0),
+		Module(2, 6, Math.PI),
+		Module(1, 5, Math.PI/2))
 
 	private val gyro = AHRS()//.apply(AHRS::calibrate)
 
