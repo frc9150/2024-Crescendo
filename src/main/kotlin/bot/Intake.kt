@@ -2,6 +2,7 @@ package bot
 
 //import edu.wpi.first.wpilibj2.command.Subsystem
 
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import kotlin.math.abs
 import com.revrobotics.CANSparkFlex
 import com.revrobotics.CANSparkBase.IdleMode
@@ -15,14 +16,17 @@ import au.grapplerobotics.ConfigurationFailedException
 class Intake : StateSystem<Intake.Goal, Intake.State> {
 	data class Goal(val pivot: Pivot.Goal, val rollers: Rollers.Goal)
 
-	data class State(val pivot: Pivot.State, val rollers: Rollers.State)
+	data class State(val pivot: Pivot.State, val rollers: Rollers.State, val frontSensor: Double?, val backSensor: Double?)
 
 	private val pivot = Pivot()
 	private val rollers = Rollers()
-	/*private val frontSensor = LaserCan(1).apply {
+
+	private val frontSensor = LaserCan(1).apply {
 		try {
 		  setRangingMode(LaserCan.RangingMode.SHORT);
-		  setRegionOfInterest(LaserCan.RegionOfInterest(8, 8, 16, 16));
+		  // position, size
+		  // size 4-16
+		  setRegionOfInterest(LaserCan.RegionOfInterest(8, 8, 4, 4));
 		  setTimingBudget(LaserCan.TimingBudget.TIMING_BUDGET_33MS);
 		} catch (e: ConfigurationFailedException) {
 		  System.out.println("Configuration failed on front LaserCAN! " + e);
@@ -32,18 +36,34 @@ class Intake : StateSystem<Intake.Goal, Intake.State> {
 	private val backSensor = LaserCan(2).apply {
 		try {
 		  setRangingMode(LaserCan.RangingMode.SHORT);
-		  setRegionOfInterest(LaserCan.RegionOfInterest(8, 8, 16, 16));
+		  // position, size
+		  // size 4-16
+		  setRegionOfInterest(LaserCan.RegionOfInterest(8, 8, 4, 4));
 		  setTimingBudget(LaserCan.TimingBudget.TIMING_BUDGET_33MS);
 		} catch (e: ConfigurationFailedException) {
 		  System.out.println("Configuration failed on front LaserCAN! " + e);
 		}
-	}*/
+	}
 
-	override fun applyGoal(goal: Goal) = State(pivot.applyGoal(goal.pivot), rollers.applyGoal(goal.rollers))
+	override fun applyGoal(goal: Goal): State {
+		val frontMeasurement = frontSensor.getMeasurement()
+		val frontDistance = if (frontMeasurement != null && frontMeasurement.status == LaserCan.LASERCAN_STATUS_VALID_MEASUREMENT) {
+			frontMeasurement.distance_mm / 1000.0 
+		} else null
+		val backMeasurement = backSensor.getMeasurement()
+		val backDistance = if (backMeasurement != null && backMeasurement.status == LaserCan.LASERCAN_STATUS_VALID_MEASUREMENT) {
+			backMeasurement.distance_mm / 1000.0 
+		} else null
+		return State(pivot.applyGoal(goal.pivot), rollers.applyGoal(goal.rollers), frontDistance, backDistance)
+	}
 
 	override fun disable() {
 		pivot.disable()
 		rollers.disable()
+	}
+
+	fun logPos() {
+		SmartDashboard.putNumber("intake pivot pos", pivot.p())
 	}
 
 	// TODO: incorporate pivot gearing: pivot is geared 4:1, and the ratio from the pulleys is 18t:18t
@@ -60,17 +80,18 @@ class Intake : StateSystem<Intake.Goal, Intake.State> {
 
 			object Out : Goal { override val angle = 0.0 }
 			object Retracted : Goal { override val angle = 0.0 }
-			object Handoff : Goal { override val angle = 0.0 }
+			object Handoff : Goal { override val angle = -0.9 }
 			data class Other(override val angle: Double) : Goal
 		}
 
 		data class State(val angle: Double, val atGoal: Boolean)
 
-		private val motor = CANSparkFlex(-1, MotorType.kBrushless).apply {
+		private val motor = CANSparkFlex(14, MotorType.kBrushless).apply {
 			restoreFactoryDefaults()
-			setIdleMode(IdleMode.kBrake)
-			setSmartCurrentLimit(25)
-			enableVoltageCompensation(11.0)
+			//setIdleMode(IdleMode.kBrake)
+			//setInverted(true)
+			//setSmartCurrentLimit(60)
+			//enableVoltageCompensation(11.0)
 		}
 
 		private val encoder = motor.getEncoder().apply {
@@ -81,15 +102,20 @@ class Intake : StateSystem<Intake.Goal, Intake.State> {
 		private val controller = motor.getPIDController().apply {
 			// TODO: Tune
 			// Position PID
-			setP(0.5)
+			setP(100.0)
 			setI(0.0)
-			setD(0.0)
+			setD(0.5)
 			setOutputRange(-1.0, 1.0)
 		}
 
 		override fun applyGoal(goal: Goal): State {
-			controller.setReference(goal.angle, ControlType.kPosition)
+			motor.set(1.0)
+			//controller.setReference(goal.angle, ControlType.kPosition)
 			return State(encoder.getPosition(), abs(goal.angle - encoder.getPosition()) < 0.0 && abs(encoder.getVelocity()) < 0.0)
+		}
+
+		fun p(): Double {
+			return encoder.getPosition()
 		}
 	}
 
@@ -104,7 +130,7 @@ class Intake : StateSystem<Intake.Goal, Intake.State> {
 		
 		data class State(val vel: Double)
 
-		private val motor = CANSparkFlex(-1, MotorType.kBrushless).apply {
+		private val motor = CANSparkFlex(15, MotorType.kBrushless).apply {
 			restoreFactoryDefaults()
 			setIdleMode(IdleMode.kBrake)
 			setSmartCurrentLimit(25)

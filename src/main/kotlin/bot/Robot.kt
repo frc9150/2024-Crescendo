@@ -46,6 +46,7 @@ class Robot : TimedRobot() {
 		robotContainer = RobotContainer()
 		// intake = Intake()
 		swerve = Swerve()
+		intake = Intake()
  		/*motors = arrayOf(11, 12).zip(arrayOf(true, true)) { id, inverted -> CANSparkFlex(id, MotorType.kBrushless).apply {
 		restoreFactoryDefaults()
 		setIdleMode(IdleMode.kCoast)
@@ -65,7 +66,7 @@ class Robot : TimedRobot() {
 
 	}
 	override fun robotPeriodic() {
-		val pose = swerve.getPose()
+		/*val pose = swerve.getPose()
 		val transError = Translation2d(0.0, 0.0).minus(pose.getTranslation())
 		SmartDashboard.putNumber("swerve x pos", pose.getTranslation().getX())
 		SmartDashboard.putNumber("swerve y pos", pose.getTranslation().getY())
@@ -81,7 +82,7 @@ class Robot : TimedRobot() {
 			swerve.applyGoal(Swerve.Goal.Drive(Translation2d(-controller.getLeftY() * Swerve.maxLinVel, -controller.getLeftX() * Swerve.maxLinVel), 3.0 * clippedError + derivative, true))
 		} else {
 			swerve.applyGoal(Swerve.Goal.Drive(Translation2d(-controller.getLeftY() * Swerve.maxLinVel, -controller.getLeftX() * Swerve.maxLinVel), -controller.getRightX() * Swerve.maxAngVel, true))
-		}
+		}*/
 
 		/*if (controller.getYButton()) {
 			motor.set(0.5)
@@ -99,6 +100,11 @@ class Robot : TimedRobot() {
 		} else {
 			elevator.clearGoal()
 		}
+
+		if (true){//controller.getYButton()) {
+			intake.applyGoal(Intake.Goal(Intake.Pivot.Goal.Handoff, Intake.Rollers.Goal.Coast))
+		}
+		intake.logPos()
 		// Intake controls commented
 		/*if (controller.getXButton()) {
 			intake.applyGoal(Intake.Goal(Intake.Pivot.Goal.Out, Intake.Rollers.Goal.Intake))
@@ -119,7 +125,6 @@ class Robot : TimedRobot() {
 
 	override fun teleopInit() {
 		System.out.println("hello!!!!");
-		//swerve.resetAbsEncoders()
 		autoCmd?.cancel() 
 	}
 

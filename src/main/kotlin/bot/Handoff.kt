@@ -6,6 +6,8 @@ import com.revrobotics.SparkPIDController
 import com.revrobotics.CANSparkBase.IdleMode
 import com.revrobotics.CANSparkBase.ControlType
 import com.revrobotics.CANSparkLowLevel.MotorType
+import au.grapplerobotics.LaserCan
+import au.grapplerobotics.ConfigurationFailedException
 
 class Handoff : StateSystem<Handoff.Goal, Handoff.State> {
 	companion object {
@@ -47,6 +49,18 @@ class Handoff : StateSystem<Handoff.Goal, Handoff.State> {
 		setOutputRange(-1.0, 1.0, 1)
 	}
 
+	private val sensor = LaserCan(3).apply {
+		try {
+		  setRangingMode(LaserCan.RangingMode.SHORT);
+		  // position, size
+		  // size 4-16
+		  setRegionOfInterest(LaserCan.RegionOfInterest(8, 8, 4, 4));
+		  setTimingBudget(LaserCan.TimingBudget.TIMING_BUDGET_33MS);
+		} catch (e: ConfigurationFailedException) {
+		  System.out.println("Configuration failed on front LaserCAN! " + e);
+		}
+	}
+
 	sealed interface Goal {
 		sealed interface VelGoal : Goal {
 			/// Tangential speed of the shooter wheels, in m/s
@@ -66,7 +80,7 @@ class Handoff : StateSystem<Handoff.Goal, Handoff.State> {
 		data class Other(override val vel: Double) : VelGoal
 	}
 
-	data class State(val vel: Double, val atGoal: Boolean)
+	data class State(val vel: Double, val atGoal: Boolean, val sensor: Double?)
 
 	private var lastGoal: Goal = Goal.Coast
 	private var holdPos = 0.0
@@ -95,8 +109,13 @@ class Handoff : StateSystem<Handoff.Goal, Handoff.State> {
 			}
 		}
 
+		val measurement = sensor.getMeasurement()
+		val distance = if (measurement != null && measurement.status == LaserCan.LASERCAN_STATUS_VALID_MEASUREMENT) {
+			measurement.distance_mm / 1000.0 
+		} else null
+
 		lastGoal = goal
-		return State(encoder.getVelocity(), atGoal)
+		return State(encoder.getVelocity(), atGoal, distance)
 	}
 
 	override fun disable() {

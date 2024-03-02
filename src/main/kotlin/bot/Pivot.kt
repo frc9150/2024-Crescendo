@@ -11,14 +11,14 @@ import edu.wpi.first.math.trajectory.TrapezoidProfile
 class Pivot: StateSystem<Pivot.Goal, Pivot.State> {
 	companion object {
 		// <1 for reduction, >1 for increase
-		// Pivot is driven by a 15 tooth pulley leading to a 30 tooth pulley
-		const val gearing = 15.0/30.0 // unitless, motor -> pivot
+		// Pivot is on a 100:1 gear ratio
+		const val gearing = 0.01 // unitless, motor -> pivot
 		const val posFactor = gearing * (2.0 * Math.PI) // motor rot -> pivot rad
 		const val velFactor = posFactor / 60.0 // motor rpm -> pivot rad/s
 		const val freeSpeed = 6784.0 * velFactor // pivot rad/s
 	}
 
-	private val pivotM = CANSparkFlex(-1, MotorType.kBrushless).apply {
+	private val pivotM = CANSparkFlex(13, MotorType.kBrushless).apply {
 		restoreFactoryDefaults()
 		setIdleMode(IdleMode.kBrake)
 		setSmartCurrentLimit(20)
