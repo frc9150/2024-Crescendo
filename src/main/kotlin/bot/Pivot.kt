@@ -1,5 +1,6 @@
 package bot
 
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import kotlin.math.abs
 import com.revrobotics.CANSparkFlex
 import com.revrobotics.SparkPIDController
@@ -21,7 +22,7 @@ class Pivot: StateSystem<Pivot.Goal, Pivot.State> {
 	private val pivotM = CANSparkFlex(13, MotorType.kBrushless).apply {
 		restoreFactoryDefaults()
 		setIdleMode(IdleMode.kBrake)
-		setSmartCurrentLimit(20)
+		setSmartCurrentLimit(40)
 		enableVoltageCompensation(12.0)
 	}
 
@@ -49,7 +50,7 @@ class Pivot: StateSystem<Pivot.Goal, Pivot.State> {
 
 		object Home : Goal { override val angle = 0.0 }
 		object Handoff : Goal { override val angle = 0.0 }
-		object Amp : Goal { override val angle = 0.0 }
+		object Amp : Goal { override val angle = -0.4 }
 		object Trap : Goal { override val angle = 0.0 }
 		object Defense : Goal { override val angle = 0.0 }
 		data class Shoot(override val angle: Double) : Goal
@@ -68,5 +69,9 @@ class Pivot: StateSystem<Pivot.Goal, Pivot.State> {
 		return State(
 			pivotE.getPosition(),
 			abs(goal.angle - pivotE.getPosition()) < 0.0 && abs(goal.vel - pivotE.getVelocity()) < 0.0)
+	}
+
+	fun dumpPos() {
+		SmartDashboard.putNumber("pivot pos", pivotE.getPosition())
 	}
 }

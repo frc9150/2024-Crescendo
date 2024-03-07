@@ -16,6 +16,9 @@ import edu.wpi.first.math.geometry.Rotation2d
 import edu.wpi.first.wpilibj2.command.Command
 import edu.wpi.first.wpilibj2.command.CommandScheduler
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
+import edu.wpi.first.wpilibj.Timer
+import edu.wpi.first.wpilibj.DriverStation
+import edu.wpi.first.wpilibj.DriverStation.Alliance
 //import system.Console
 
 // CAN ids:
@@ -38,31 +41,50 @@ class Robot : TimedRobot() {
 	private lateinit var swerve: Swerve
 	private lateinit var elevator: Elevator
 	private lateinit var controller: XboxController
+	private lateinit var controller2: XboxController
 	private lateinit var shooter: Shooter
 	private lateinit var motor: CANSparkFlex
+	private lateinit var pivot: Pivot
 
 	private lateinit var motors: List<CANSparkFlex>
+	private lateinit var climbs: List<CANSparkFlex>
+	private lateinit var motori: CANSparkFlex
 	override fun robotInit() {
 		robotContainer = RobotContainer()
 		// intake = Intake()
 		swerve = Swerve()
-		intake = Intake()
- 		/*motors = arrayOf(11, 12).zip(arrayOf(true, true)) { id, inverted -> CANSparkFlex(id, MotorType.kBrushless).apply {
+		//intake = Intake()
+		pivot = Pivot()
+ 		motors = arrayOf(11, 12).zip(arrayOf(true, true)) { id, inverted -> CANSparkFlex(id, MotorType.kBrushless).apply {
 		restoreFactoryDefaults()
 		setIdleMode(IdleMode.kCoast)
 		setSmartCurrentLimit(80)
 		enableVoltageCompensation(12.0)
 		setInverted(inverted)
-	}}*/
+	}}
+	 	climbs = arrayOf(16, 17).zip(arrayOf(true, false)) { id, inverted -> CANSparkFlex(id, MotorType.kBrushless).apply {
+		restoreFactoryDefaults()
+		setIdleMode(IdleMode.kCoast)
+		setSmartCurrentLimit(80)
+		enableVoltageCompensation(12.0)
+		setInverted(inverted)
+	}}
 
 		elevator = Elevator()
 		controller = XboxController(0)
-/*motor = CANSparkFlex(10, MotorType.kBrushless).apply {
+		controller2 = XboxController(1)
+motor = CANSparkFlex(10, MotorType.kBrushless).apply {
 		restoreFactoryDefaults()
 		setIdleMode(IdleMode.kBrake)
 		setSmartCurrentLimit(80)
 		enableVoltageCompensation(12.0)
-	}*/
+	}
+	motori = CANSparkFlex(15, MotorType.kBrushless).apply {
+			restoreFactoryDefaults()
+			setIdleMode(IdleMode.kBrake)
+			setSmartCurrentLimit(40)
+			enableVoltageCompensation(12.0)
+		}
 
 	}
 	override fun robotPeriodic() {
@@ -80,52 +102,140 @@ class Robot : TimedRobot() {
 			// trust
 			val derivative = (transError.getY() * velocity[0] - transError.getX() * velocity[1]) / (transError.getNorm() * transError.getNorm())
 			swerve.applyGoal(Swerve.Goal.Drive(Translation2d(-controller.getLeftY() * Swerve.maxLinVel, -controller.getLeftX() * Swerve.maxLinVel), 3.0 * clippedError + derivative, true))
-		} else {
-			swerve.applyGoal(Swerve.Goal.Drive(Translation2d(-controller.getLeftY() * Swerve.maxLinVel, -controller.getLeftX() * Swerve.maxLinVel), -controller.getRightX() * Swerve.maxAngVel, true))
+		} else {*/
+		//}
+
+		//if (controller.getBButton()) {
+	//		pivot.applyGoal(Pivot.Goal.Amp)
+	//	}
+		pivot.dumpPos()
+		/*if (controller2.getYButton()) {
+			climbs[0].set(1.0)
+			climbs[1].set(1.0)
+		} else if (controller2.getBButton()) {
+			climbs[0].set(-1.0)
+			climbs[1].set(-1.0)
+		}else{
+			climbs[0].set(0.0)
+			climbs[1].set(0.0)
 		}*/
 
-		/*if (controller.getYButton()) {
-			motor.set(0.5)
+		
+		
+		CommandScheduler.getInstance().run()
+	}
+	private var autoStart = 0.0
+	override fun autonomousInit() {
+		autoCmd = robotContainer?.getAutonomousCommand()
+		autoCmd?.schedule()
+		autoStart = Timer.getFPGATimestamp()
+	}
+	override fun autonomousPeriodic() {
+		val time = Timer.getFPGATimestamp() - autoStart
+		if (time < 4.0) {
+			elevator.applyGoal(Elevator.Goal.Handoff)
+		} else {
+			elevator.applyGoal(Elevator.Goal.Home)
+		}
+		if (time > 1.5 && time < 4.0) {
 			motors[0].set(1.0)
 			motors[1].set(1.0)
+		} else {
+			motors[0].set(0.0)
+			motors[1].set(0.0)
+		}
+		if (time > 2.5 && time < 4.0) {
+			motor.set(0.3)
+		} else {
+			motor.set(0.0)
+		}
+		if (time > 5.0) {
+			swerve.applyGoal(Swerve.Goal.Drive(Translation2d(-0.4, 0.0), 0.0, true))
+		}
+	}
+
+	override fun teleopInit() {
+		System.out.println("hello!!!!");
+		autoCmd?.cancel()
+		swerve.setRotation(swerve.getPose().getRotation().plus(Rotation2d.fromDegrees(180.0)))
+	}
+
+	override fun teleopPeriodic() {
+		val multiplier: Double = if (controller.getLeftBumper()) { 0.5 } else { 1.0 }
+		if (controller.getRightBumper()) {
+			var targetAngle = Rotation2d.fromDegrees(-60.0)
+			val ally = DriverStation.getAlliance()
+			if (ally.isPresent() && ally.get() == Alliance.Red) {
+				targetAngle = Rotation2d.fromDegrees(60.0)
+			}
+
+			val error = targetAngle.minus(swerve.getPose().getRotation()).getRadians()
+			var clippedError = error % (2.0 * Math.PI)
+			if (clippedError > Math.PI) { clippedError -= 2.0 * Math.PI }
+			if (clippedError < -Math.PI) { clippedError += 2.0 * Math.PI }
+			swerve.applyGoal(Swerve.Goal.Drive(Translation2d(multiplier * -controller.getLeftY() * Swerve.maxLinVel, multiplier * -controller.getLeftX() * Swerve.maxLinVel), 3.5 * clippedError, true))
+		} else {
+			swerve.applyGoal(Swerve.Goal.Drive(Translation2d(multiplier * -controller.getLeftY() * Swerve.maxLinVel, multiplier * -controller.getLeftX() * Swerve.maxLinVel), multiplier * -controller.getRightX() * Swerve.maxAngVel, true))
+		}
+		if (controller2.getRightBumper()) {
+			//motor.set(-0.5)
+			motors[0].set(-0.5)
+			motors[1].set(-0.5)
+		} else if (false){//controller.getLeftBumper()) {
+			motor.set(-0.3)
+			//motori.set(1.0)
+			motors[0].set(
+				0.0)
+			motors[1].set(0.0)
+		} else if (controller2.getBButton()) {
+			motor.set(-0.2)
+			//motori.set(1.0)
+			motors[0].set(
+				0.0)
+			motors[1].set(0.0)
+		} else if (false){//controller2.getLeftBumper()) {
+			motor.set(0.3)
+			//motors[0].set(0.0)
+			//motors[1].set(0.0)
+			motori.set(1.0)	
 		} else {
 			motor.set(0.0)
 			motors[0].set(0.0)
 			motors[1].set(0.0)
-		}*/
-		if (controller.getXButton()) {
+			motori.set(0.0)		
+		}
+		if (controller2.getLeftBumper()) {
+			motors[0].set(1.0)
+			motors[1].set(1.0)
+		} else if (controller2.getStartButton()) {
+			motors[0].set(0.375)
+			motors[1].set(0.1875)
+		}
+		if(controller2.getYButton()) {
+			motor.set(0.3)
+		}
+		if (controller2.getXButton()) {
+			elevator.applyGoal(Elevator.Goal.Handoff)
+		} else if (controller2.getAButton()) {
 			elevator.applyGoal(Elevator.Goal.Amp)
-		} else if (controller.getAButton()) {
-			elevator.applyGoal(Elevator.Goal.Home)
 		} else {
-			elevator.clearGoal()
+			elevator.applyGoal(Elevator.Goal.Home)
+			/*elevator.clearGoal()*/
 		}
 
-		if (true){//controller.getYButton()) {
+		/*if (controller.getYButton()) {
 			intake.applyGoal(Intake.Goal(Intake.Pivot.Goal.Handoff, Intake.Rollers.Goal.Coast))
-		}
-		intake.logPos()
+		}*/
+		//intake.logPos()
 		// Intake controls commented
 		/*if (controller.getXButton()) {
 			intake.applyGoal(Intake.Goal(Intake.Pivot.Goal.Out, Intake.Rollers.Goal.Intake))
 		} else {
 			intake.applyGoal(Intake.Goal(Intake.Pivot.Goal.Retracted, Intake.Rollers.Goal.Brake))
 		}*/
-		if (controller.getLeftBumperPressed()) {
+		if (controller.getStartButtonPressed()) {
 			swerve.setPose(Pose2d(Translation2d(0.0, 0.0), Rotation2d(0.0)))
 		}
-		
-		CommandScheduler.getInstance().run()
-	}
-
-	override fun autonomousInit() {
-		autoCmd = robotContainer?.getAutonomousCommand()
-		autoCmd?.schedule()
-	}
-
-	override fun teleopInit() {
-		System.out.println("hello!!!!");
-		autoCmd?.cancel() 
 	}
 
 	override fun testInit() { CommandScheduler.getInstance().cancelAll() }

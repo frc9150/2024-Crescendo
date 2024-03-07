@@ -38,7 +38,7 @@ class Elevator: StateSystem<Elevator.Goal, Elevator.State> {
 		// TODO: Tune
 		// Position PID
 		// gives 15% output with 1cm error
-		setP(15.0)
+		setP(10.0) // 15
 		setI(0.0)
 		setD(0.1)
 		setOutputRange(-1.0, 1.0)
@@ -48,9 +48,9 @@ class Elevator: StateSystem<Elevator.Goal, Elevator.State> {
 		// around 0.86-0.873 is absolute max extension
 		val pos: Double
 
-		object Home : Goal { override val pos = 0.025 }
-		object Handoff : Goal { override val pos = 0.22 }
-		object Amp : Goal { override val pos = 0.5 }
+		object Home : Goal { override val pos = 0.01 }
+		object Handoff : Goal { override val pos = 0.825-0.235 }//0.15-0.15 }
+		object Amp : Goal { override val pos = 0.825-0.15 }
 		object Trap : Goal { override val pos = 0.825 }
 		object Defense : Goal { override val pos = 0.75 }
 		//data class Other(override val pos: Double) : Goal

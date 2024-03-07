@@ -22,6 +22,8 @@ import com.revrobotics.SparkAbsoluteEncoder.Type
 
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 
+import com.revrobotics.CANSparkLowLevel.PeriodicFrame
+
 class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 	companion object {
 		// TODO: fix
@@ -167,6 +169,14 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 			setIdleMode(turnIdle)
 			setSmartCurrentLimit(turnCurrentLim)
 			enableVoltageCompensation(12.0)
+			setPeriodicFramePeriod(PeriodicFrame.kStatus0, 250)
+			setPeriodicFramePeriod(PeriodicFrame.kStatus1, 250)
+			setPeriodicFramePeriod(PeriodicFrame.kStatus2, 250)
+			setPeriodicFramePeriod(PeriodicFrame.kStatus3, 250)
+			setPeriodicFramePeriod(PeriodicFrame.kStatus4, 250)
+			setPeriodicFramePeriod(PeriodicFrame.kStatus5, 500)
+			setPeriodicFramePeriod(PeriodicFrame.kStatus6, 500)
+			setPeriodicFramePeriod(PeriodicFrame.kStatus7, 500)
 		}
 
 		val driveE = driveM.getEncoder().apply {
