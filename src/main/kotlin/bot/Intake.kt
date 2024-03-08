@@ -90,8 +90,8 @@ class Intake : StateSystem<Intake.Goal, Intake.State> {
 			restoreFactoryDefaults()
 			setIdleMode(IdleMode.kBrake)
 			setInverted(true)
-			//setSmartCurrentLimit(60)
-			//enableVoltageCompensation(11.0)
+			setSmartCurrentLimit(40)
+			enableVoltageCompensation(12.0)
 		}
 
 		private val encoder = motor.getEncoder().apply {
@@ -104,13 +104,12 @@ class Intake : StateSystem<Intake.Goal, Intake.State> {
 			// Position PID
 			setP(4.0)
 			setI(0.0)
-			setD(0.5)
+			setD(0.1)
 			setOutputRange(-1.0, 1.0)
 		}
 
 		override fun applyGoal(goal: Goal): State {
-			//motor.set(2.0)
-			controller.setReference(goal.angle, ControlType.kPosition)
+			//controller.setReference(goal.angle, ControlType.kPosition)
 			return State(encoder.getPosition(), abs(goal.angle - encoder.getPosition()) < 0.0 && abs(encoder.getVelocity()) < 0.0)
 		}
 
@@ -133,8 +132,8 @@ class Intake : StateSystem<Intake.Goal, Intake.State> {
 		private val motor = CANSparkFlex(15, MotorType.kBrushless).apply {
 			restoreFactoryDefaults()
 			setIdleMode(IdleMode.kBrake)
-			setSmartCurrentLimit(25)
-			enableVoltageCompensation(11.0)
+			setSmartCurrentLimit(40)
+			enableVoltageCompensation(12.0)
 		}
 
 		private val encoder = motor.getEncoder()

@@ -24,7 +24,7 @@ class Handoff : StateSystem<Handoff.Goal, Handoff.State> {
 	private val motor = CANSparkFlex(10, MotorType.kBrushless).apply {
 		restoreFactoryDefaults()
 		setIdleMode(IdleMode.kBrake)
-		setSmartCurrentLimit(40)
+		setSmartCurrentLimit(60)
 		enableVoltageCompensation(12.0)
 	}
 
@@ -49,7 +49,7 @@ class Handoff : StateSystem<Handoff.Goal, Handoff.State> {
 		setOutputRange(-1.0, 1.0, 1)
 	}
 
-	private val sensor = LaserCan(3).apply {
+	/*private val sensor = LaserCan(3).apply {
 		try {
 		  setRangingMode(LaserCan.RangingMode.SHORT);
 		  // position, size
@@ -59,7 +59,7 @@ class Handoff : StateSystem<Handoff.Goal, Handoff.State> {
 		} catch (e: ConfigurationFailedException) {
 		  System.out.println("Configuration failed on front LaserCAN! " + e);
 		}
-	}
+	}*/
 
 	sealed interface Goal {
 		sealed interface VelGoal : Goal {
@@ -78,9 +78,10 @@ class Handoff : StateSystem<Handoff.Goal, Handoff.State> {
 		object Deposit : VelGoal { override val vel = -0.5 }
 		/// Custom target velocity
 		data class Other(override val vel: Double) : VelGoal
+		data class Power(val pow: Double) : Goal
 	}
 
-	data class State(val vel: Double, val atGoal: Boolean, val sensor: Double?)
+	data class State(val vel: Double, val atGoal: Boolean)//, val sensor: Double?)
 
 	private var lastGoal: Goal = Goal.Coast
 	private var holdPos = 0.0
@@ -107,15 +108,19 @@ class Handoff : StateSystem<Handoff.Goal, Handoff.State> {
 				// TODO: I guess we have to account for goal.vel = 0, smh
 				atGoal = abs((encoder.getVelocity() / goal.vel) - 1.0) < 0.1
 			}
+			is Goal.Power -> {
+				motor.set(goal.pow)
+				atGoal = true
+			}
 		}
 
-		val measurement = sensor.getMeasurement()
+		/*val measurement = sensor.getMeasurement()
 		val distance = if (measurement != null && measurement.status == LaserCan.LASERCAN_STATUS_VALID_MEASUREMENT) {
 			measurement.distance_mm / 1000.0 
-		} else null
+		} else null*/
 
 		lastGoal = goal
-		return State(encoder.getVelocity(), atGoal, distance)
+		return State(encoder.getVelocity(), atGoal)//, distance)
 	}
 
 	override fun disable() {
