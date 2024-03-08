@@ -58,7 +58,7 @@ class Robot : TimedRobot() {
 		shooter = Shooter()
 	 	climbs = arrayOf(16, 17).zip(arrayOf(true, false)) { id, inverted -> CANSparkMax(id, MotorType.kBrushless).apply {
 			restoreFactoryDefaults()
-			setIdleMode(IdleMode.kCoast)
+			setIdleMode(IdleMode.kBrake)
 			setSmartCurrentLimit(80)
 			enableVoltageCompensation(12.0)
 			setInverted(inverted)
