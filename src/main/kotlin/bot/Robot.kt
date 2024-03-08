@@ -62,6 +62,14 @@ class Robot : TimedRobot() {
 			setSmartCurrentLimit(80)
 			enableVoltageCompensation(12.0)
 			setInverted(inverted)
+			setPeriodicFramePeriod(PeriodicFrame.kStatus0, 250)
+			setPeriodicFramePeriod(PeriodicFrame.kStatus1, 250)
+			setPeriodicFramePeriod(PeriodicFrame.kStatus2, 250)
+			setPeriodicFramePeriod(PeriodicFrame.kStatus3, 250)
+			setPeriodicFramePeriod(PeriodicFrame.kStatus4, 250)
+			setPeriodicFramePeriod(PeriodicFrame.kStatus5, 500)
+			setPeriodicFramePeriod(PeriodicFrame.kStatus6, 500)
+			setPeriodicFramePeriod(PeriodicFrame.kStatus7, 500)
 		}}
 
 		elevator = Elevator()
