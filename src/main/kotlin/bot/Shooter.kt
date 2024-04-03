@@ -1,13 +1,15 @@
 package bot
 
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 import kotlin.math.abs
 import com.revrobotics.CANSparkFlex
 import com.revrobotics.SparkPIDController
 import com.revrobotics.CANSparkBase.IdleMode
 import com.revrobotics.CANSparkBase.ControlType
 import com.revrobotics.CANSparkLowLevel.MotorType
+import com.revrobotics.CANSparkLowLevel.PeriodicFrame
 
-class Shooter: StateSystem<Shooter.Goal, Shooter.State> {
+class Shooter : StateSystem<Shooter.Goal, Shooter.State> {
 	companion object {
 		// >1 is gearing increase, <1 is reduction
 		const val gearing = 1.0
@@ -21,23 +23,33 @@ class Shooter: StateSystem<Shooter.Goal, Shooter.State> {
 		restoreFactoryDefaults()
 		setIdleMode(IdleMode.kCoast)
 		setSmartCurrentLimit(80)
-		enableVoltageCompensation(12.0)
+		enableVoltageCompensation(11.5)
 		setInverted(inverted)
+		setPeriodicFramePeriod(PeriodicFrame.kStatus0, 250)
+		setPeriodicFramePeriod(PeriodicFrame.kStatus1, 250)
+		setPeriodicFramePeriod(PeriodicFrame.kStatus2, 250)
+		setPeriodicFramePeriod(PeriodicFrame.kStatus3, 250)
+		setPeriodicFramePeriod(PeriodicFrame.kStatus4, 250)
+		setPeriodicFramePeriod(PeriodicFrame.kStatus5, 500)
+		setPeriodicFramePeriod(PeriodicFrame.kStatus6, 500)
+		setPeriodicFramePeriod(PeriodicFrame.kStatus7, 500)
 	}}
 
 	private val encoders = motors.map { motor -> motor.getEncoder().apply {
 		setPositionConversionFactor(posFactor)
 		setVelocityConversionFactor(velFactor)
+		//setAverageDepth(8)
+		//setMeasurementPeriod(16)
 	}}
 
 	/// PID slot 0 is velocity, slot 1 is position
 	private val controllers = motors.map { motor -> motor.getPIDController().apply {
 		// Velocity PID
-		setP(0.1, 0)
+		setP(0.25, 0)
 		setI(0.0, 0)
 		setD(0.0, 0)
 		setFF(1.0/freeSpeed, 0)
-		setOutputRange(-1.0, 1.0, 0)
+		setOutputRange(0.0, 1.0, 0)
 
 		// Position PID
 		setP(0.1, 1)
@@ -55,7 +67,7 @@ class Shooter: StateSystem<Shooter.Goal, Shooter.State> {
 		/// Allow shooter to free-spin
 		object Coast : Goal
 		/// Shoot into speaker
-		object Shoot : Power { override val power = 1.0 }
+		object Shoot : Power { override val power = 0.9 }
 		/// Deposit into amp
 		object Deposit : Power { override val power = -0.5 }
 		/// Custom target velocity
@@ -83,8 +95,12 @@ class Shooter: StateSystem<Shooter.Goal, Shooter.State> {
 				atGoal = true
 			}
 			is Goal.Power -> {
-				motors.forEach { it.set(goal.power) }
-				//controllers.forEach { it.setReference(goal.vel, ControlType.kVelocity, 0) }
+				//controller
+				motors[0].set(1.0 * goal.power)
+				motors[1].set(goal.power)
+				//motors.forEach { it.set(goal.power) }
+				//controllers.forEach { it.setReference(goal.power * freeSpeed, ControlType.kVelocity, 0) }
+				//SmartDashboard.putNumber("shooter speed", encoders[0].getVelocity() / freeSpeed)
 				atGoal = true /*encoders.all { encoder ->
 					// shooter is considered to be at the correct speed when the velocity is between 90% and 110% of the target velocity
 					// TODO: I guess we have to account for goal.vel = 0, smh

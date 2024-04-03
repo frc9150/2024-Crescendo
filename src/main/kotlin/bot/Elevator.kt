@@ -32,6 +32,7 @@ class Elevator: StateSystem<Elevator.Goal, Elevator.State> {
 	private val encoder = motor.getEncoder().apply {
 		setPositionConversionFactor(posFactor)
 		setVelocityConversionFactor(velFactor)
+		//setPosition(0.0)
 	}
 
 	private val controller = motor.getPIDController().apply {
@@ -48,17 +49,18 @@ class Elevator: StateSystem<Elevator.Goal, Elevator.State> {
 		// around 0.86-0.873 is absolute max extension
 		val pos: Double
 
-		object Home : Goal { override val pos = 0.01 }
-		object Handoff : Goal { override val pos = 0.825-0.235 }//0.15-0.15 }
-		object Amp : Goal { override val pos = 0.825-0.15 }
-		object Trap : Goal { override val pos = 0.825 }
-		object Defense : Goal { override val pos = 0.75 }
-		//data class Other(override val pos: Double) : Goal
+		object Home : Goal { override val pos = -0.24 }
+		object High : Goal { override val pos = 0.0 }
+		object Handoff : Goal { override val pos = 0.825-0.235-0.0635 }//0.15-0.15 }
+		object Amp : Goal { override val pos = 0.40 }
+		object Trap : Goal { override val pos = 0.825-0.0635 }
+		object Defense : Goal { override val pos = 0.75-0.0635 }
+		data class Other(override val pos: Double) : Goal
 	}
 
 	data class State(val pos: Double, val atGoal: Boolean)
 
-	private val profile = TrapezoidProfile(TrapezoidProfile.Constraints(1.3, 2.7))
+	private val profile = TrapezoidProfile(TrapezoidProfile.Constraints(1.3, 1.0)) // 2.7
 	private var lastGoal: Goal? = null
 	private var timer = Timer()
 	private lateinit var initState: TrapezoidProfile.State

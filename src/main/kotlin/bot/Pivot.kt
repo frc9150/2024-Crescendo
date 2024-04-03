@@ -8,6 +8,7 @@ import com.revrobotics.CANSparkBase.IdleMode
 import com.revrobotics.CANSparkBase.ControlType
 import com.revrobotics.CANSparkLowLevel.MotorType
 import edu.wpi.first.math.trajectory.TrapezoidProfile
+import com.revrobotics.CANSparkLowLevel.PeriodicFrame
 
 class Pivot: StateSystem<Pivot.Goal, Pivot.State> {
 	companion object {
@@ -22,8 +23,16 @@ class Pivot: StateSystem<Pivot.Goal, Pivot.State> {
 	private val pivotM = CANSparkFlex(13, MotorType.kBrushless).apply {
 		restoreFactoryDefaults()
 		setIdleMode(IdleMode.kBrake)
-		setSmartCurrentLimit(40)
+		setSmartCurrentLimit(20)
 		enableVoltageCompensation(12.0)
+		setPeriodicFramePeriod(PeriodicFrame.kStatus0, 250)
+		setPeriodicFramePeriod(PeriodicFrame.kStatus1, 250)
+		setPeriodicFramePeriod(PeriodicFrame.kStatus2, 250)
+		setPeriodicFramePeriod(PeriodicFrame.kStatus3, 250)
+		setPeriodicFramePeriod(PeriodicFrame.kStatus4, 250)
+		setPeriodicFramePeriod(PeriodicFrame.kStatus5, 500)
+		setPeriodicFramePeriod(PeriodicFrame.kStatus6, 500)
+		setPeriodicFramePeriod(PeriodicFrame.kStatus7, 500)
 	}
 
 	private val pivotE = pivotM.getEncoder().apply {
@@ -35,7 +44,7 @@ class Pivot: StateSystem<Pivot.Goal, Pivot.State> {
 	private val pivotPID = pivotM.getPIDController().apply {
 		// TODO: Tune
 		// Position PID
-		setP(0.1)
+		setP(1.0)
 		setI(0.0)
 		setD(0.0)
 		setOutputRange(-1.0, 1.0)
@@ -50,7 +59,7 @@ class Pivot: StateSystem<Pivot.Goal, Pivot.State> {
 
 		object Home : Goal { override val angle = 0.0 }
 		object Handoff : Goal { override val angle = 0.0 }
-		object Amp : Goal { override val angle = -0.4 }
+		object Amp : Goal { override val angle = -0.525 /*-0.525*/ }
 		object Trap : Goal { override val angle = 0.0 }
 		object Defense : Goal { override val angle = 0.0 }
 		data class Shoot(override val angle: Double) : Goal
@@ -63,9 +72,11 @@ class Pivot: StateSystem<Pivot.Goal, Pivot.State> {
 	private val profile = TrapezoidProfile(TrapezoidProfile.Constraints(10.0, 10.0))
 
 	override fun applyGoal(goal: Goal): State {
-		val setpoint = profile.calculate(0.02, TrapezoidProfile.State(pivotE.getPosition(), pivotE.getVelocity()), TrapezoidProfile.State(goal.angle, goal.vel))
+		//pivotM.set(0.00)
+		//val setpoint = profile.calculate(0.02, TrapezoidProfile.State(pivotE.getPosition(), pivotE.getVelocity()), TrapezoidProfile.State(goal.angle, goal.vel))
 		// TODO: gravity aFF, position offset?
-		pivotPID.setReference(setpoint.position, ControlType.kPosition, 0, (setpoint.velocity / freeSpeed) * 12.0, SparkPIDController.ArbFFUnits.kVoltage)
+		//pivotPID.setReference(setpoint.position, ControlType.kPosition, 0, (setpoint.velocity / freeSpeed) * 12.0, SparkPIDController.ArbFFUnits.kVoltage)
+		pivotPID.setReference(goal.angle, ControlType.kPosition)
 		return State(
 			pivotE.getPosition(),
 			abs(goal.angle - pivotE.getPosition()) < 0.0 && abs(goal.vel - pivotE.getVelocity()) < 0.0)

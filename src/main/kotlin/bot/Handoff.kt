@@ -24,7 +24,7 @@ class Handoff : StateSystem<Handoff.Goal, Handoff.State> {
 	private val motor = CANSparkFlex(10, MotorType.kBrushless).apply {
 		restoreFactoryDefaults()
 		setIdleMode(IdleMode.kBrake)
-		setSmartCurrentLimit(60)
+		setSmartCurrentLimit(80)
 		enableVoltageCompensation(12.0)
 	}
 

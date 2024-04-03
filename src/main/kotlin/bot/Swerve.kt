@@ -3,9 +3,11 @@ package bot
 import edu.wpi.first.math.geometry.Pose2d
 import edu.wpi.first.math.geometry.Rotation2d
 import edu.wpi.first.math.geometry.Translation2d
+import edu.wpi.first.math.Matrix
+import edu.wpi.first.math.VecBuilder
 import edu.wpi.first.math.kinematics.ChassisSpeeds
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics
-import edu.wpi.first.math.kinematics.SwerveDriveOdometry
+import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator
 import edu.wpi.first.math.kinematics.SwerveModulePosition
 import edu.wpi.first.math.kinematics.SwerveModuleState
 import edu.wpi.first.math.util.Units
@@ -24,6 +26,17 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard
 
 import com.revrobotics.CANSparkLowLevel.PeriodicFrame
 
+import com.pathplanner.lib.auto.AutoBuilder
+import com.pathplanner.lib.util.HolonomicPathFollowerConfig
+import com.pathplanner.lib.util.PIDConstants
+import com.pathplanner.lib.util.ReplanningConfig
+import edu.wpi.first.wpilibj.DriverStation
+import edu.wpi.first.wpilibj.DriverStation.Alliance
+
+import edu.wpi.first.networktables.NetworkTable
+import edu.wpi.first.networktables.NetworkTableEntry
+import edu.wpi.first.networktables.NetworkTableInstance
+
 class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 	companion object {
 		// TODO: fix
@@ -40,7 +53,7 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 		// TODO
 		val maxLinVel = Module.driveFreeSpeed
 		val maxModVel = Module.driveFreeSpeed //maxLinVel
-		val maxAngVel = 1.0 * Math.PI * 2.0
+		val maxAngVel = 2.2 * Math.PI * 2.0 // 1.0
 	}
 
 	sealed interface Goal {
@@ -60,7 +73,36 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 
 	private val gyro = AHRS()//.apply(AHRS::calibrate)
 
-	private val odo = SwerveDriveOdometry(kinematics, gyro.getRotation2d(), getModulePositions())
+	private val odo = SwerveDrivePoseEstimator(kinematics,
+		gyro.getRotation2d(),
+		getModulePositions(),
+		Pose2d(),
+		VecBuilder.fill(0.05, 0.05, Units.degreesToRadians(5.0)),
+		VecBuilder.fill(0.5, 0.5, Units.degreesToRadians(30.0)))
+
+	init {
+		AutoBuilder.configureHolonomic(
+			this::getPose,
+			this::setPose,
+			this::getRobotRelativeSpeeds,
+			this::driveRobotRelative,
+			HolonomicPathFollowerConfig(
+				PIDConstants(5.0, 0.0, 0.0),
+				PIDConstants(5.0, 0.0, 0.0),
+				maxLinVel,
+				Math.sqrt((wheelBase*wheelBase)/4 + (trackWidth*trackWidth)/4),
+				ReplanningConfig()
+			),
+			fun(): Boolean {
+				val alliance = DriverStation.getAlliance()
+				if (alliance.isPresent()) {
+					return alliance.get() == DriverStation.Alliance.Red
+				}
+				return false
+			},
+			DummySubsystem()
+		)
+	}
 
 	private fun drive(linVel: Translation2d, angVel: Double, fieldRel: Boolean) {
 		var speeds = ChassisSpeeds(linVel.getX(), linVel.getY(), angVel)
@@ -72,6 +114,13 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 		modules.zip(states, Module::setDesiredState)
 	}
 
+	private fun driveRobotRelative(speeds: ChassisSpeeds) {
+		val states = kinematics.toSwerveModuleStates(speeds)
+		SwerveDriveKinematics.desaturateWheelSpeeds(states, speeds, maxModVel, maxLinVel, maxAngVel)
+	}
+
+	private fun getRobotRelativeSpeeds() = kinematics.toChassisSpeeds(*modules.map(Module::getState).toTypedArray())
+
 	// Used in auto
 	private fun setModuleStates(states: Array<SwerveModuleState>) {
 		SwerveDriveKinematics.desaturateWheelSpeeds(states, maxModVel)
@@ -82,7 +131,7 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 		modules.zip(arrayOf(45.0, -45.0, -45.0, 45.0)) { mod, ang -> mod.setDesiredState(SwerveModuleState(0.0, Rotation2d.fromDegrees(ang))) }
 	}
 
-	fun getPose() = odo.getPoseMeters()
+	fun getPose() = odo.getEstimatedPosition()
 
 	fun setPose(pose: Pose2d) {
 		odo.resetPosition(gyro.getRotation2d(), getModulePositions(), pose)
@@ -101,7 +150,6 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 	}
 
 	override fun applyGoal(goal: Goal): State {
-		odo.update(gyro.getRotation2d(), getModulePositions())
 		when (goal) {
 			is Goal.Drive -> {
 				drive(goal.linVel, goal.angVel, goal.fieldRel)
@@ -114,6 +162,19 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 			}
 		}
 		return State(getPose())
+	}
+
+	fun periodic() {
+		odo.update(gyro.getRotation2d(), getModulePositions())
+		/*val limelightMeasurement: LimelightHelpers.PoseEstimate = LimelightHelpers.getBotPoseEstimate_wpiBlue("limelight")
+		if(limelightMeasurement.tagCount >= 2) {
+		  odo.setVisionMeasurementStdDevs(VecBuilder.fill(.7,.7,9999999.0))
+		  odo.addVisionMeasurement(
+			  limelightMeasurement.pose,
+			  limelightMeasurement.timestampSeconds)
+		}
+		SmartDashboard.putNumber("pose X", getPose().getX())
+		SmartDashboard.putNumber("pose Y", getPose().getY())*/
 	}
 
 	fun resetAbsEncoders() = modules.forEach(Module::resetEncoders)
@@ -162,13 +223,13 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 			restoreFactoryDefaults()
 			setIdleMode(driveIdle)
 			setSmartCurrentLimit(driveCurrentLim)
-			enableVoltageCompensation(12.0)
+			enableVoltageCompensation(13.0)
 		}
 		private val turnM = CANSparkMax(turnCanId, MotorType.kBrushless).apply {
 			restoreFactoryDefaults()
 			setIdleMode(turnIdle)
 			setSmartCurrentLimit(turnCurrentLim)
-			enableVoltageCompensation(12.0)
+			enableVoltageCompensation(13.0)
 			setPeriodicFramePeriod(PeriodicFrame.kStatus0, 250)
 			setPeriodicFramePeriod(PeriodicFrame.kStatus1, 250)
 			setPeriodicFramePeriod(PeriodicFrame.kStatus2, 250)
