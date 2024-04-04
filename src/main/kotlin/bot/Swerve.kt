@@ -1,4 +1,5 @@
 package bot
+import kotlin.math.abs
 
 import edu.wpi.first.math.geometry.Pose2d
 import edu.wpi.first.math.geometry.Rotation2d
@@ -12,6 +13,8 @@ import edu.wpi.first.math.kinematics.SwerveModulePosition
 import edu.wpi.first.math.kinematics.SwerveModuleState
 import edu.wpi.first.math.util.Units
 import edu.wpi.first.wpilibj2.command.SubsystemBase
+import edu.wpi.first.math.interpolation.TimeInterpolatableBuffer
+import edu.wpi.first.math.MathSharedStore
 
 import com.kauailabs.navx.frc.AHRS
 
@@ -37,7 +40,9 @@ import edu.wpi.first.networktables.NetworkTable
 import edu.wpi.first.networktables.NetworkTableEntry
 import edu.wpi.first.networktables.NetworkTableInstance
 
-class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
+import edu.wpi.first.wpilibj2.command.Subsystem
+
+class Swerve : Subsystem {//StateSystem<Swerve.Goal, Swerve.State> {
 	companion object {
 		// TODO: fix
 		val trackWidth = Units.inchesToMeters(26.5)
@@ -66,10 +71,15 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 
 	// frontLeft, frontRight, backLeft, backRight
 	private val modules = arrayOf(
-		Module(3, 7, -Math.PI/2),
-		Module(4, 8, 0.0),
-		Module(2, 6, Math.PI),
-		Module(1, 5, Math.PI/2))
+		Module(3, 7, Math.PI+Math.PI/2),
+		Module(4, 8, Math.PI+Math.PI),//Math.PI/2),
+		Module(2, 6, Math.PI+Math.PI),//-Math.PI/2),
+		Module(1, 5, Math.PI+Math.PI/2))
+	//private val modules = arrayOf(
+	//	Module(3, 7, -Math.PI/2),
+	//	Module(4, 8, 0.0),
+	//	Module(2, 6, Math.PI),
+	//	Module(1, 5, Math.PI/2))
 
 	private val gyro = AHRS()//.apply(AHRS::calibrate)
 
@@ -79,6 +89,9 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 		Pose2d(),
 		VecBuilder.fill(0.05, 0.05, Units.degreesToRadians(5.0)),
 		VecBuilder.fill(0.5, 0.5, Units.degreesToRadians(30.0)))
+
+	private val rotationBuffer: TimeInterpolatableBuffer<Rotation2d> = TimeInterpolatableBuffer.createBuffer(1.5)
+	private val vision = Vision()
 
 	init {
 		AutoBuilder.configureHolonomic(
@@ -100,7 +113,7 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 				}
 				return false
 			},
-			DummySubsystem()
+			this//DummySubsystem()
 		)
 	}
 
@@ -117,6 +130,7 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 	private fun driveRobotRelative(speeds: ChassisSpeeds) {
 		val states = kinematics.toSwerveModuleStates(speeds)
 		SwerveDriveKinematics.desaturateWheelSpeeds(states, speeds, maxModVel, maxLinVel, maxAngVel)
+		System.out.println("drive");
 	}
 
 	private fun getRobotRelativeSpeeds() = kinematics.toChassisSpeeds(*modules.map(Module::getState).toTypedArray())
@@ -134,6 +148,10 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 	fun getPose() = odo.getEstimatedPosition()
 
 	fun setPose(pose: Pose2d) {
+		System.out.println("set posed");
+		if (!pose.getRotation().equals(getPose().getRotation())) {
+			rotationBuffer.clear()
+		}
 		odo.resetPosition(gyro.getRotation2d(), getModulePositions(), pose)
 	}
 
@@ -149,7 +167,7 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 		return arrayOf(rotated.getX(), rotated.getY(), chassis.omegaRadiansPerSecond)
 	}
 
-	override fun applyGoal(goal: Goal): State {
+	fun applyGoal(goal: Goal): State {
 		when (goal) {
 			is Goal.Drive -> {
 				drive(goal.linVel, goal.angVel, goal.fieldRel)
@@ -164,17 +182,31 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 		return State(getPose())
 	}
 
-	fun periodic() {
+	fun periodic2() {
 		odo.update(gyro.getRotation2d(), getModulePositions())
+		LimelightHelpers.SetRobotOrientation("limelight", getPose().getRotation().getDegrees(), 360.0 * getVelocity()[2] / (2.0 * Math.PI), 0.0, 0.0, 0.0, 0.0)
+		val mt2: LimelightHelpers.PoseEstimate = LimelightHelpers.getBotPoseEstimate_wpiBlue_MegaTag2("limelight")
+		if (abs(getVelocity()[2]) <= 4 * Math.PI && mt2.pose.getTranslation().getNorm() > 0.01) {
+			odo.setVisionMeasurementStdDevs(VecBuilder.fill(.6,.6,9999999.0))
+        odo.addVisionMeasurement(
+            mt2.pose,
+            mt2.timestampSeconds)
+		}
+		/*rotationBuffer.addSample(MathSharedStore.getTimestamp(), getPose().getRotation())
+		val visionOdo = vision.applyGoal(Vision.Goal(rotationBuffer))
+		if (visionOdo.pose != null) {
+			odo.setVisionMeasurementStdDevs(VecBuilder.fill(.7, .7, 9999999.0))
+			odo.addVisionMeasurement(visionOdo.pose, visionOdo.timestamp)
+		}*/
+		SmartDashboard.putNumber("pose X", getPose().getX())
+		SmartDashboard.putNumber("pose Y", getPose().getY())
 		/*val limelightMeasurement: LimelightHelpers.PoseEstimate = LimelightHelpers.getBotPoseEstimate_wpiBlue("limelight")
 		if(limelightMeasurement.tagCount >= 2) {
 		  odo.setVisionMeasurementStdDevs(VecBuilder.fill(.7,.7,9999999.0))
 		  odo.addVisionMeasurement(
 			  limelightMeasurement.pose,
 			  limelightMeasurement.timestampSeconds)
-		}
-		SmartDashboard.putNumber("pose X", getPose().getX())
-		SmartDashboard.putNumber("pose Y", getPose().getY())*/
+		}*/
 	}
 
 	fun resetAbsEncoders() = modules.forEach(Module::resetEncoders)
@@ -230,14 +262,14 @@ class Swerve : StateSystem<Swerve.Goal, Swerve.State> {
 			setIdleMode(turnIdle)
 			setSmartCurrentLimit(turnCurrentLim)
 			enableVoltageCompensation(13.0)
-			setPeriodicFramePeriod(PeriodicFrame.kStatus0, 250)
+			/*setPeriodicFramePeriod(PeriodicFrame.kStatus0, 250)
 			setPeriodicFramePeriod(PeriodicFrame.kStatus1, 250)
 			setPeriodicFramePeriod(PeriodicFrame.kStatus2, 250)
 			setPeriodicFramePeriod(PeriodicFrame.kStatus3, 250)
 			setPeriodicFramePeriod(PeriodicFrame.kStatus4, 250)
 			setPeriodicFramePeriod(PeriodicFrame.kStatus5, 500)
 			setPeriodicFramePeriod(PeriodicFrame.kStatus6, 500)
-			setPeriodicFramePeriod(PeriodicFrame.kStatus7, 500)
+			setPeriodicFramePeriod(PeriodicFrame.kStatus7, 500)*/
 		}
 
 		val driveE = driveM.getEncoder().apply {

@@ -1,7 +1,7 @@
 package bot
 
-
 import kotlin.math.abs
+import kotlin.jvm.optionals.getOrNull
 import com.revrobotics.CANSparkFlex
 import com.revrobotics.CANSparkMax
 import com.revrobotics.SparkPIDController
@@ -22,6 +22,9 @@ import edu.wpi.first.wpilibj.DriverStation
 import edu.wpi.first.wpilibj.DriverStation.Alliance
 import com.revrobotics.CANSparkLowLevel.PeriodicFrame
 import edu.wpi.first.math.interpolation.InterpolatingDoubleTreeMap
+import edu.wpi.first.apriltag.AprilTagFields
+import edu.wpi.first.apriltag.AprilTagFieldLayout
+import edu.wpi.first.wpilibj.smartdashboard.Field2d
 //import system.Console
 
 // CAN ids:
@@ -51,6 +54,8 @@ class Robot : TimedRobot() {
 	private lateinit var handoff: Handoff
 	private lateinit var climber: Climber
 	private lateinit var shotMap: InterpolatingDoubleTreeMap
+	private val displayField = Field2d()
+	val field = AprilTagFieldLayout.loadField(AprilTagFields.k2024Crescendo)
 
 	//private lateinit var climbs: List<CANSparkMax>
 	override fun robotInit() {
@@ -60,10 +65,11 @@ class Robot : TimedRobot() {
 		pivot = Pivot()
 		shooter = Shooter()
 		shotMap = InterpolatingDoubleTreeMap()
-		shotMap.put(-3.475, -0.375)
-		shotMap.put(-6.14, -0.475)
-		shotMap.put(-7.625, -0.525)
-		shotMap.put(-7.72, -0.525)
+		shotMap.put(4.24, -0.375)
+		shotMap.put(5.495, -0.525)
+		shotMap.put(6.62, -0.55)
+		shotMap.put(6.323, -0.5375)
+		SmartDashboard.putData("Field", displayField)
 	 	/*climbs = arrayOf(16, 17).zip(arrayOf(false, false)) { id, inverted -> CANSparkMax(id, MotorType.kBrushless).apply {
 			restoreFactoryDefaults()
 			setIdleMode(IdleMode.kBrake)
@@ -88,7 +94,8 @@ class Robot : TimedRobot() {
 		robotContainer = RobotContainer()
 	}
 	override fun robotPeriodic() {
-		swerve.periodic()
+		swerve.periodic2()
+		displayField.setRobotPose(swerve.getPose())
 		/*val pose = swerve.getPose()
 		val transError = Translation2d(0.0, 0.0).minus(pose.getTranslation())
 		SmartDashboard.putNumber("swerve x pos", pose.getTranslation().getX())
@@ -119,14 +126,14 @@ class Robot : TimedRobot() {
 		elevator.applyGoal(if (time < 4.0) Elevator.Goal.Handoff else Elevator.Goal.Home)
 		shooter.applyGoal(if (time > 1.5 && time < 4.0) Shooter.Goal.Shoot else Shooter.Goal.Coast)
 		handoff.applyGoal(if (time > 2.5 && time < 4.0) Handoff.Goal.Power(0.6) else Handoff.Goal.Coast)
-		swerve.applyGoal(Swerve.Goal.Drive(Translation2d(if (time > 5.0) -0.4 else 0.0, 0.0), 0.0, true))
+		//swerve.applyGoal(Swerve.Goal.Drive(Translation2d(if (time > 5.0) -0.4 else 0.0, 0.0), 0.0, true))
 		pivot.applyGoal(Pivot.Goal.Home)
 	}
 
 	override fun teleopInit() {
 		System.out.println("hello!!!!");
 		autoCmd?.cancel()
-		swerve.setRotation(swerve.getPose().getRotation().plus(Rotation2d.fromDegrees(180.0)))
+		//swerve.setRotation(swerve.getPose().getRotation().plus(Rotation2d.fromDegrees(180.0)))
 	}
 
 	private var lastLL = 0.0
@@ -136,99 +143,96 @@ class Robot : TimedRobot() {
 		LimelightHelpers.setLEDMode_ForceOff("")
 	}
 
+	private var allowFeed = false
+
 	override fun teleopPeriodic() {
 		SmartDashboard.putNumber("LL TX", LimelightHelpers.getTX(""))
 		SmartDashboard.putNumber("LL TY", LimelightHelpers.getTY(""))
-		val tx = LimelightHelpers.getTX("")
-		val ty = LimelightHelpers.getTY("")
+		val blue = DriverStation.getAlliance().getOrNull()?.let { it != Alliance.Red } ?: true
+		var joystick = Translation2d(-controller.getLeftY(), -controller.getLeftX())
+			.rotateBy(if (blue) Rotation2d() else Rotation2d(Math.PI))
+		if (joystick.getNorm() < 0.05) joystick = Translation2d()
 
-		if (lastLL != tx) {
-			lastLL = tx
-			lastLLAbs = swerve.getPose().getRotation().minus(Rotation2d.fromDegrees(tx))
-		}
+		val tag = field.getTagPose(if (blue) 7 else 4).getOrNull()!!.getTranslation().toTranslation2d()
+		val pose = swerve.getPose()
+		SmartDashboard.putNumber("angle", pose.getRotation().getDegrees())
+		val dist = pose.getTranslation().getDistance(tag)
+
+		SmartDashboard.putNumber("distance", dist)
+
 		// 145
 		// 190
-		var shotAngle = if (ty == 0.0) 0.4 else shotMap.get(ty)
-		SmartDashboard.putNumber("shot angle", shotMap.get(ty))
+		var shotAngle = shotMap.get(dist)
+		SmartDashboard.putNumber("shot angle", shotMap.get(dist))
 		if (shotAngle > -0.375) shotAngle = -0.375
 		if (shotAngle < -0.6) shotAngle = -0.6
 		val multiplier: Double = if (controller.getLeftBumper()) { 0.5 } else { 1.0 }
-			SmartDashboard.putNumber("angle", swerve.getPose().getRotation().getDegrees())
 		if (controller.getRightBumper()) {
-			val targetAngle = lastLLAbs
+			val transError = tag.minus(pose.getTranslation())
+			val targetAngle = transError.getAngle().plus(Rotation2d.fromDegrees(-3.0))
 			val error = targetAngle.minus(swerve.getPose().getRotation()).getRadians()
-			if (lastLL == 0.0) {
-				LimelightHelpers.setLEDMode_ForceOff("")
-			} else if (abs(Rotation2d(error).getDegrees()) < 5.0) {
+			if (abs(Rotation2d(error).getDegrees()) < 5.0) {
 				LimelightHelpers.setLEDMode_ForceOn("")
 			} else {
-				LimelightHelpers.setLEDMode_PipelineControl("")
+				LimelightHelpers.setLEDMode_ForceOff("")
 			}
 
-			/*var targetAngle = Rotation2d.fromDegrees(190.0)
-			val ally = DriverStation.getAlliance()
-			if (ally.isPresent() && ally.get() == Alliance.Red) {
-				targetAngle = Rotation2d.fromDegrees(-190.0)
-			}(*/
-
-			var clippedError = error % (2.0 * Math.PI)
-			if (clippedError > Math.PI) { clippedError -= 2.0 * Math.PI }
-			if (clippedError < -Math.PI) { clippedError += 2.0 * Math.PI }
-			val avel = swerve.getVelocity()[2]
-			val dterm = -0.5 * avel
-			swerve.applyGoal(Swerve.Goal.Drive(Translation2d(multiplier * -controller.getLeftY() * Swerve.maxLinVel, multiplier * -controller.getLeftX() * Swerve.maxLinVel), 9.0 * clippedError + dterm, true))
-		//} else {
-		/*val pose = swerve.getPose()
-		val transError = Translation2d(0.0, 5.405).minus(pose.getTranslation())
-		if (controller.getRightBumper() && transError.getNorm() > 0.5) {
-			val targetAngle = transError.getAngle()
-			val error = targetAngle.minus(pose.getRotation()).getRadians()
 			var clippedError = error % (2.0 * Math.PI)
 			if (clippedError > Math.PI) { clippedError -= 2.0 * Math.PI }
 			if (clippedError < -Math.PI) { clippedError += 2.0 * Math.PI }
 			val velocity = swerve.getVelocity()
 			// trust
 			val derivative = (transError.getY() * velocity[0] - transError.getX() * velocity[1]) / (transError.getNorm() * transError.getNorm())
-			swerve.applyGoal(Swerve.Goal.Drive(Translation2d(-controller.getLeftY() * Swerve.maxLinVel, -controller.getLeftX() * Swerve.maxLinVel), 3.5 * clippedError + derivative, true))*/
+			val pTerm = 1.25 * 9.0 * clippedError
+			val dTerm = 0.5 * (derivative - velocity[2])
+			val ffTerm = derivative
+			swerve.applyGoal(Swerve.Goal.Drive(joystick.times(multiplier * Swerve.maxLinVel), pTerm + dTerm + ffTerm, true))
 		} else {
 			if (lastLL == 0.0) {
 				LimelightHelpers.setLEDMode_ForceOff("")
 			} else {
 				LimelightHelpers.setLEDMode_PipelineControl("")
 			}
-			swerve.applyGoal(Swerve.Goal.Drive(Translation2d(multiplier * -controller.getLeftY() * Swerve.maxLinVel, multiplier * -controller.getLeftX() * Swerve.maxLinVel), multiplier * -controller.getRightX() * Swerve.maxAngVel, true))
+			swerve.applyGoal(Swerve.Goal.Drive(joystick.times(multiplier * Swerve.maxLinVel), multiplier * -controller.getRightX() * Swerve.maxAngVel, true))
 		}
 
 		var handoffGoal: Handoff.Goal = Handoff.Goal.Coast
 		var shooterGoal: Shooter.Goal = Shooter.Goal.Coast
+		if (!controller2.getYButton() || !controller2.getLeftBumper()) {
+			allowFeed = false
+		}
 		if (controller2.getRightBumper()) {
 			shooterGoal = Shooter.Goal.Other(-0.5)
 		}
 		if (controller2.getLeftBumper()) {
 			shooterGoal = Shooter.Goal.Shoot
-
 		}
 		if (controller2.getYButton()) {
-			handoffGoal = Handoff.Goal.Power(1.0)
+			if (shooter.getSpeedPerc() > 0.85) {
+				allowFeed = true
+			}
+			if (!controller2.getLeftBumper() || allowFeed) handoffGoal = Handoff.Goal.Power(1.0)
 		}
 		if (controller2.getBButton()) {
 			handoffGoal = Handoff.Goal.Power(-0.2)
 		}
 
-		var elevatorGoal = if (controller2.getXButton()) {
+		var elevatorGoal = if (false){ //controller2.getXButton()) {
 			Elevator.Goal.Other(-0.1375)
 		} else if (controller2.getAButton()) {
 			Elevator.Goal.Amp
-		} else Elevator.Goal.Home // Home
+		} else if (controller2.getLeftBumper() || controller.getRightBumper()) {
+			Elevator.Goal.Home // Home
+		} else Elevator.Goal.Handoff
 
 		if (controller.getLeftBumper()) {
-			elevatorGoal = Elevator.Goal.Other(-0.015 - 0.0635)
-			handoffGoal = Handoff.Goal.Power(0.4)
+			//elevatorGoal = Elevator.Goal.Other(-0.015 - 0.0635)
 			intake.applyGoal(Intake.Goal(Intake.Pivot.Goal.Out, Intake.Rollers.Goal.Intake))
 		} else if (controller.getYButton()) {
 			intake.applyGoal(Intake.Goal(Intake.Pivot.Goal.Out, Intake.Rollers.Goal.Eject))
-		} else if (false){//controller2.getYButton()) {
-			intake.applyGoal(Intake.Goal(Intake.Pivot.Goal.Retracted, Intake.Rollers.Goal.Intake))
+		} else if (controller2.getXButton()) {
+			handoffGoal = Handoff.Goal.Power(0.4)
+			intake.applyGoal(Intake.Goal(Intake.Pivot.Goal.Retracted, Intake.Rollers.Goal.Handoff))
 		} else {
 			intake.applyGoal(Intake.Goal(Intake.Pivot.Goal.Retracted, Intake.Rollers.Goal.Coast))
 		}
@@ -238,6 +242,7 @@ class Robot : TimedRobot() {
 		handoff.applyGoal(handoffGoal)
 		shooter.applyGoal(shooterGoal)
 
+		// 6.323
 		pivot.applyGoal(if (controller2.getLeftBumper() || controller.getRightBumper()) Pivot.Goal.Shoot(shotAngle) else if (controller2.getAButton() || controller.getXButton()) Pivot.Goal.Home else Pivot.Goal.Amp)
 
 		/*if (controller.getXButton()) {

@@ -92,7 +92,7 @@ class Intake : StateSystem<Intake.Goal, Intake.State> {
 			restoreFactoryDefaults()
 			setIdleMode(IdleMode.kBrake)
 			setInverted(true)
-			setSmartCurrentLimit(40)
+			setSmartCurrentLimit(60)
 			enableVoltageCompensation(12.0)
 		}
 
@@ -108,7 +108,7 @@ class Intake : StateSystem<Intake.Goal, Intake.State> {
 			setP(1.25)
 			setI(0.0)
 			setD(1.0)
-			setOutputRange(-0.75, 0.75)
+			setOutputRange(-1.0, 1.0)
 		}
 
 		override fun applyGoal(goal: Goal): State {
@@ -122,13 +122,14 @@ class Intake : StateSystem<Intake.Goal, Intake.State> {
 		}
 
 		fun p(): Double {
-			return -100.0//encoder.getPosition()
+			return encoder.getPosition()
 		}
 	}
 
 	class Rollers : StateSystem<Rollers.Goal, Rollers.State> {
 		sealed interface Goal {
 			object Intake : Goal
+			object Handoff : Goal
 			object Eject : Goal
 			object Brake : Goal
 			object Coast : Goal
@@ -169,6 +170,9 @@ class Intake : StateSystem<Intake.Goal, Intake.State> {
 		override fun applyGoal(goal: Goal): State {
 			when (goal) {
 				is Goal.Intake -> {
+					motor.set(0.25)
+				}
+				is Goal.Handoff -> {
 					motor.set(1.0)
 				}
 				is Goal.Eject -> {

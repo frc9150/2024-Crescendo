@@ -22,8 +22,8 @@ class Shooter : StateSystem<Shooter.Goal, Shooter.State> {
 	private val motors = arrayOf(11, 12).zip(arrayOf(true, true)) { id, inverted -> CANSparkFlex(id, MotorType.kBrushless).apply {
 		restoreFactoryDefaults()
 		setIdleMode(IdleMode.kCoast)
-		setSmartCurrentLimit(80)
-		enableVoltageCompensation(11.5)
+		setSmartCurrentLimit(120)
+		enableVoltageCompensation(12.25)
 		setInverted(inverted)
 		setPeriodicFramePeriod(PeriodicFrame.kStatus0, 250)
 		setPeriodicFramePeriod(PeriodicFrame.kStatus1, 250)
@@ -100,7 +100,6 @@ class Shooter : StateSystem<Shooter.Goal, Shooter.State> {
 				motors[1].set(goal.power)
 				//motors.forEach { it.set(goal.power) }
 				//controllers.forEach { it.setReference(goal.power * freeSpeed, ControlType.kVelocity, 0) }
-				//SmartDashboard.putNumber("shooter speed", encoders[0].getVelocity() / freeSpeed)
 				atGoal = true /*encoders.all { encoder ->
 					// shooter is considered to be at the correct speed when the velocity is between 90% and 110% of the target velocity
 					// TODO: I guess we have to account for goal.vel = 0, smh
@@ -111,6 +110,11 @@ class Shooter : StateSystem<Shooter.Goal, Shooter.State> {
 
 		lastGoal = goal
 		return State(encoders.map { it.getVelocity() }.average(), atGoal)
+	}
+
+	fun getSpeedPerc(): Double {
+		SmartDashboard.putNumber("shooter speed", (encoders.map { it.getVelocity() }.average() / freeSpeed))
+		return (encoders.map { it.getVelocity() }.average() / freeSpeed)
 	}
 
 	override fun disable() {

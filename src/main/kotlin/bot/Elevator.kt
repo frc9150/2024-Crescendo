@@ -51,7 +51,7 @@ class Elevator: StateSystem<Elevator.Goal, Elevator.State> {
 
 		object Home : Goal { override val pos = -0.24 }
 		object High : Goal { override val pos = 0.0 }
-		object Handoff : Goal { override val pos = 0.825-0.235-0.0635 }//0.15-0.15 }
+		object Handoff : Goal { override val pos = -0.0625 }//0.15-0.15 }
 		object Amp : Goal { override val pos = 0.40 }
 		object Trap : Goal { override val pos = 0.825-0.0635 }
 		object Defense : Goal { override val pos = 0.75-0.0635 }
